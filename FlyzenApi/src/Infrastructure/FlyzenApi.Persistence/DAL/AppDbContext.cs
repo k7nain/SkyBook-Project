@@ -1,28 +1,12 @@
-﻿using FlyzenApi.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
-using System.Reflection;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace FlyzenApi.Persistence.DAL
 {
-    public class AppDbContext : DbContext
+    internal class AppDbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-
-        public DbSet<User> Users { get; set; }
-        public DbSet<City> Cities { get; set; }
-        public DbSet<CityGalleryImage> CityGalleryImages { get; set; }
-        public DbSet<Flight> Flights { get; set; }
-        public DbSet<SeatMap> SeatMaps { get; set; }
-        public DbSet<MealOption> MealOptions { get; set; }
-        public DbSet<BaggageOption> BaggageOptions { get; set; }
-        public DbSet<Booking> Bookings { get; set; }
-        public DbSet<BookingPassenger> BookingPassengers { get; set; }
-        public DbSet<Ticket> Tickets { get; set; }
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
-            base.OnModelCreating(modelBuilder);
-        }
     }
 }
