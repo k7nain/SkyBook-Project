@@ -1,4 +1,3 @@
-```csharp
 namespace FlyzenApi.Domain.Enums
 {
     public enum SeatClass
@@ -30,4 +29,3 @@ namespace FlyzenApi.Domain.Enums
         GlutenFree
     }
 }
-```

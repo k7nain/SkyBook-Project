@@ -8,6 +8,15 @@
 
   <ItemGroup>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="MediatR" Version="11.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Core\FlyzenApi.Application\FlyzenApi.Application.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\FlyzenApi.Infrastructure\FlyzenApi.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\FlyzenApi.Persistence\FlyzenApi.Persistence.csproj" />
   </ItemGroup>
 
 </Project>
