@@ -1,163 +1,295 @@
-﻿using FlyzenApi.Domain.Entities;
-using FlyzenApi.Domain.Enums;
+using FlyzenApi.Domain.Entities;
+using FlyzenApi.Domain.Entities.Common;
 using Microsoft.EntityFrameworkCore;
-using System.Reflection;
 
 namespace FlyzenApi.Persistence.DAL
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+        {
+        }
 
-        public DbSet<User> Users { get; set; }
-        public DbSet<City> Cities { get; set; }
-        public DbSet<CityGalleryImage> CityGalleryImages { get; set; }
-        public DbSet<Flight> Flights { get; set; }
-        public DbSet<SeatMap> SeatMaps { get; set; }
-        public DbSet<MealOption> MealOptions { get; set; }
-        public DbSet<BaggageOption> BaggageOptions { get; set; }
-        public DbSet<Booking> Bookings { get; set; }
-        public DbSet<BookingPassenger> BookingPassengers { get; set; }
-        public DbSet<Ticket> Tickets { get; set; }
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            StampTimestamps();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            StampTimestamps();
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        private void StampTimestamps()
+        {
+            var now = DateTime.UtcNow;
+            foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    entry.Entity.CreatedAt = now;
+                }
+                else if (entry.State == EntityState.Modified)
+                {
+                    entry.Entity.UpdatedAt = now;
+                }
+            }
+        }
+
+        public DbSet<User> Users => Set<User>();
+        public DbSet<City> Cities => Set<City>();
+        public DbSet<Airline> Airlines => Set<Airline>();
+        public DbSet<CityGalleryImage> CityGalleryImages => Set<CityGalleryImage>();
+        public DbSet<Flight> Flights => Set<Flight>();
+        public DbSet<SeatMap> Seats => Set<SeatMap>();
+        public DbSet<MealOption> MealOptions => Set<MealOption>();
+        public DbSet<BaggageOption> BaggageOptions => Set<BaggageOption>();
+        public DbSet<Booking> Bookings => Set<Booking>();
+        public DbSet<BookingPassenger> BookingPassengers => Set<BookingPassenger>();
+        public DbSet<Ticket> Tickets => Set<Ticket>();
+        public DbSet<TripCountry> TripCountries => Set<TripCountry>();
+        public DbSet<TripCity> TripCities => Set<TripCity>();
+        public DbSet<TripPlace> TripPlaces => Set<TripPlace>();
+        public DbSet<TripPlaceImage> TripPlaceImages => Set<TripPlaceImage>();
+        public DbSet<PromoCode> PromoCodes => Set<PromoCode>();
+        public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<BookingReminder> BookingReminders => Set<BookingReminder>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
-            
-            // Seed data
-            SeedData(modelBuilder);
-            
             base.OnModelCreating(modelBuilder);
-        }
 
-        private void SeedData(ModelBuilder modelBuilder)
-        {
-            // Cities
-            var city1 = new City
+            modelBuilder.Entity<User>(b =>
             {
-                Id = Guid.NewGuid(),
-                Name = "Istanbul",
-                Country = "Turkey",
-                AirportCode = "IST",
-                Description = "Istanbul is the largest city in Turkey and a major commercial center.",
-                CreatedAt = DateTime.UtcNow
-            };
+                b.HasIndex(u => u.Email).IsUnique();
+                b.Property(u => u.Email).IsRequired().HasMaxLength(256);
+                b.Property(u => u.FirstName).IsRequired().HasMaxLength(100);
+                b.Property(u => u.LastName).IsRequired().HasMaxLength(100);
 
-            var city2 = new City
+                b.HasIndex(u => u.GoogleId).IsUnique().HasFilter("\"GoogleId\" IS NOT NULL");
+                b.HasIndex(u => u.AppleId).IsUnique().HasFilter("\"AppleId\" IS NOT NULL");
+                b.HasIndex(u => u.PasswordResetTokenHash);
+            });
+
+            modelBuilder.Entity<City>(b =>
             {
-                Id = Guid.NewGuid(),
-                Name = "Dubai",
-                Country = "United Arab Emirates",
-                AirportCode = "DXB",
-                Description = "Dubai is a global city and business hub in the Middle East.",
-                CreatedAt = DateTime.UtcNow
-            };
+                b.Property(c => c.Name).IsRequired().HasMaxLength(100);
+                b.Property(c => c.AirportCode).IsRequired().HasMaxLength(10);
+                b.Property(c => c.Country).IsRequired().HasMaxLength(100);
 
-            var city3 = new City
+                b.HasMany(c => c.GalleryImages)
+                    .WithOne(g => g.City)
+                    .HasForeignKey(g => g.CityId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasMany(c => c.FlightsFromHere)
+                    .WithOne(f => f.DepartureCity)
+                    .HasForeignKey(f => f.DepartureCityId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasMany(c => c.FlightsToHere)
+                    .WithOne(f => f.ArrivalCity)
+                    .HasForeignKey(f => f.ArrivalCityId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Airline>(b =>
             {
-                Id = Guid.NewGuid(),
-                Name = "Baku",
-                Country = "Azerbaijan",
-                AirportCode = "GYD",
-                Description = "Baku is the capital and largest city of Azerbaijan.",
-                CreatedAt = DateTime.UtcNow
-            };
+                b.Property(a => a.Name).IsRequired().HasMaxLength(100);
+                b.Property(a => a.Code).IsRequired().HasMaxLength(10);
+                b.HasIndex(a => a.Code).IsUnique();
+            });
 
-            modelBuilder.Entity<City>().HasData(city1, city2, city3);
-
-            // City Gallery Images
-            modelBuilder.Entity<CityGalleryImage>().HasData(
-                new CityGalleryImage { Id = Guid.NewGuid(), CityId = city1.Id, ImageUrl = "https://images.unsplash.com/photo-1524678606370-a47ad25cb82a?w=500", Description = "Istanbul Skyline", CreatedAt = DateTime.UtcNow },
-                new CityGalleryImage { Id = Guid.NewGuid(), CityId = city2.Id, ImageUrl = "https://images.unsplash.com/photo-1512453335684-cf7fdd84efb7?w=500", Description = "Dubai Marina", CreatedAt = DateTime.UtcNow },
-                new CityGalleryImage { Id = Guid.NewGuid(), CityId = city3.Id, ImageUrl = "https://images.unsplash.com/photo-1604516453874-85c03432c262?w=500", Description = "Baku at Night", CreatedAt = DateTime.UtcNow }
-            );
-
-            // Meal Options
-            var mealOptions = new[]
+            modelBuilder.Entity<Flight>(b =>
             {
-                new MealOption { Id = Guid.NewGuid(), Name = "Standard Meal", Type = MealType.Standard, Price = 0, CreatedAt = DateTime.UtcNow },
-                new MealOption { Id = Guid.NewGuid(), Name = "Vegetarian Meal", Type = MealType.Vegetarian, Price = 15, CreatedAt = DateTime.UtcNow },
-                new MealOption { Id = Guid.NewGuid(), Name = "Vegan Meal", Type = MealType.Vegan, Price = 20, CreatedAt = DateTime.UtcNow },
-                new MealOption { Id = Guid.NewGuid(), Name = "Halal Meal", Type = MealType.Halal, Price = 18, CreatedAt = DateTime.UtcNow },
-                new MealOption { Id = Guid.NewGuid(), Name = "Gluten Free Meal", Type = MealType.GlutenFree, Price = 25, CreatedAt = DateTime.UtcNow }
-            };
-            modelBuilder.Entity<MealOption>().HasData(mealOptions);
+                b.Property(f => f.FlightNumber).IsRequired().HasMaxLength(20);
+                b.Property(f => f.BasePrice).HasPrecision(18, 2);
+                b.Property(f => f.Currency).IsRequired().HasMaxLength(3).HasDefaultValue("AZN");
 
-            // Baggage Options
-            var baggageOptions = new[]
+                b.HasMany(f => f.Seats)
+                    .WithOne(s => s.Flight)
+                    .HasForeignKey(s => s.FlightId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasMany(f => f.Bookings)
+                    .WithOne(bk => bk.Flight)
+                    .HasForeignKey(bk => bk.FlightId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Nullable so flights created before airlines existed as a concept
+                // remain valid; the frontend falls back to deriving a display name
+                // from the flight number for those.
+                b.HasOne(f => f.Airline)
+                    .WithMany(a => a.Flights)
+                    .HasForeignKey(f => f.AirlineId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<SeatMap>(b =>
             {
-                new BaggageOption { Id = Guid.NewGuid(), Name = "Standard Baggage (20kg)", Price = 0, CreatedAt = DateTime.UtcNow },
-                new BaggageOption { Id = Guid.NewGuid(), Name = "Extra Baggage (20kg)", Price = 30, CreatedAt = DateTime.UtcNow },
-                new BaggageOption { Id = Guid.NewGuid(), Name = "Premium Baggage (30kg)", Price = 50, CreatedAt = DateTime.UtcNow }
-            };
-            modelBuilder.Entity<BaggageOption>().HasData(baggageOptions);
+                b.Property(s => s.SeatNumber).IsRequired().HasMaxLength(10);
+                b.Property(s => s.PriceMultiplier).HasPrecision(5, 2);
+                b.HasIndex(s => new { s.FlightId, s.SeatNumber }).IsUnique();
+                // Optimistic concurrency on Postgres' hidden system column: guards against
+                // two concurrent bookings both reading IsAvailable=true for the same seat.
+                b.Property<uint>("xmin").IsRowVersion();
 
-            // Flights
-            var flight1 = new Flight
+                b.HasOne(s => s.Booking)
+                    .WithMany()
+                    .HasForeignKey(s => s.BookingId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<MealOption>(b =>
             {
-                Id = Guid.NewGuid(),
-                FlightNumber = "TK101",
-                DepartureCityId = city1.Id,
-                ArrivalCityId = city2.Id,
-                DepartureTime = DateTime.UtcNow.AddDays(1).Date.AddHours(10),
-                ArrivalTime = DateTime.UtcNow.AddDays(1).Date.AddHours(15),
-                BasePrice = 150,
-                CreatedAt = DateTime.UtcNow
-            };
+                b.Property(m => m.Name).IsRequired().HasMaxLength(100);
+                b.Property(m => m.Price).HasPrecision(18, 2);
+                b.Property(m => m.Currency).IsRequired().HasMaxLength(3).HasDefaultValue("AZN");
+            });
 
-            var flight2 = new Flight
+            modelBuilder.Entity<BaggageOption>(b =>
             {
-                Id = Guid.NewGuid(),
-                FlightNumber = "TK102",
-                DepartureCityId = city2.Id,
-                ArrivalCityId = city3.Id,
-                DepartureTime = DateTime.UtcNow.AddDays(2).Date.AddHours(09),
-                ArrivalTime = DateTime.UtcNow.AddDays(2).Date.AddHours(12),
-                BasePrice = 120,
-                CreatedAt = DateTime.UtcNow
-            };
+                b.Property(o => o.Name).IsRequired().HasMaxLength(100);
+                b.Property(o => o.Price).HasPrecision(18, 2);
+                b.Property(o => o.Currency).IsRequired().HasMaxLength(3).HasDefaultValue("AZN");
+            });
 
-            modelBuilder.Entity<Flight>().HasData(flight1, flight2);
-
-            // Seats for Flight 1
-            var seats = new List<SeatMap>();
-            var seatClasses = new[] { SeatClass.Economy, SeatClass.Business };
-
-            for (int i = 0; i < 5; i++)
+            modelBuilder.Entity<Booking>(b =>
             {
-                for (int j = 0; j < 6; j++)
+                b.Property(bk => bk.PNR).IsRequired().HasMaxLength(10);
+                b.Property(bk => bk.TotalPrice).HasPrecision(18, 2);
+                b.Property(bk => bk.Currency).IsRequired().HasMaxLength(3).HasDefaultValue("AZN");
+                b.Property(bk => bk.IsDeleted).HasDefaultValue(false);
+                b.HasIndex(bk => bk.PNR).IsUnique();
+
+                b.HasOne(bk => bk.User)
+                    .WithMany(u => u.Bookings)
+                    .HasForeignKey(bk => bk.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasMany(bk => bk.Passengers)
+                    .WithOne(p => p.Booking)
+                    .HasForeignKey(p => p.BookingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(bk => bk.Ticket)
+                    .WithOne(t => t.Booking)
+                    .HasForeignKey<Ticket>(t => t.BookingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<BookingPassenger>(b =>
+            {
+                b.Property(p => p.FirstName).IsRequired().HasMaxLength(100);
+                b.Property(p => p.LastName).IsRequired().HasMaxLength(100);
+                b.Property(p => p.PassportNumber).IsRequired().HasMaxLength(30);
+                b.Property(p => p.PriceCalculated).HasPrecision(18, 2);
+
+                b.HasOne(p => p.Seat)
+                    .WithMany()
+                    .HasForeignKey(p => p.SeatMapId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(p => p.MealOption)
+                    .WithMany()
+                    .HasForeignKey(p => p.MealOptionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(p => p.BaggageOption)
+                    .WithMany()
+                    .HasForeignKey(p => p.BaggageOptionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Ticket>(b =>
+            {
+                b.Property(t => t.TicketNumber).IsRequired().HasMaxLength(20);
+                b.Property(t => t.QrCodeData).IsRequired();
+                b.HasIndex(t => t.TicketNumber).IsUnique();
+            });
+
+            modelBuilder.Entity<TripCountry>(b =>
+            {
+                b.Property(c => c.Name).IsRequired().HasMaxLength(100);
+                b.Property(c => c.FlagCode).IsRequired().HasMaxLength(2);
+
+                b.HasMany(c => c.Cities)
+                    .WithOne(ci => ci.Country)
+                    .HasForeignKey(ci => ci.CountryId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<TripCity>(b =>
+            {
+                b.Property(c => c.Name).IsRequired().HasMaxLength(100);
+                b.Property(c => c.ShortDescription).HasMaxLength(500);
+
+                b.HasMany(c => c.Places)
+                    .WithOne(p => p.City)
+                    .HasForeignKey(p => p.CityId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<TripPlace>(b =>
+            {
+                b.Property(p => p.Name).IsRequired().HasMaxLength(150);
+                b.Property(p => p.Description).HasMaxLength(2000);
+                b.Property(p => p.Category).HasMaxLength(50);
+
+                b.HasMany(p => p.Images)
+                    .WithOne(i => i.Place)
+                    .HasForeignKey(i => i.PlaceId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<PromoCode>(b =>
+            {
+                b.Property(p => p.Code).IsRequired().HasMaxLength(30);
+                b.Property(p => p.DiscountPercentage).HasPrecision(5, 2);
+                b.HasIndex(p => p.Code).IsUnique();
+                // Optimistic concurrency: guards against two concurrent bookings both
+                // reading UsedCount < MaxUses for the same near-exhausted code.
+                b.Property<uint>("xmin").IsRowVersion();
+            });
+
+            modelBuilder.Entity<Notification>(b =>
+            {
+                b.Property(n => n.Title).IsRequired().HasMaxLength(200);
+                b.Property(n => n.Message).IsRequired().HasMaxLength(1000);
+                b.HasIndex(n => n.UserId);
+
+                b.HasOne(n => n.User)
+                    .WithMany()
+                    .HasForeignKey(n => n.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(n => n.Booking)
+                    .WithMany()
+                    .HasForeignKey(n => n.BookingId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<BookingReminder>(b =>
+            {
+                b.HasIndex(r => new { r.BookingId, r.DaysBefore }).IsUnique();
+
+                b.HasOne(r => r.Booking)
+                    .WithMany()
+                    .HasForeignKey(r => r.BookingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
                 {
-                    var seatClass = i < 2 ? SeatClass.Business : SeatClass.Economy;
-                    seats.Add(new SeatMap
-                    {
-                        Id = Guid.NewGuid(),
-                        FlightId = flight1.Id,
-                        SeatNumber = $"{(char)('A' + j)}{i + 1}",
-                        Class = seatClass,
-                        IsAvailable = true,
-                        CreatedAt = DateTime.UtcNow
-                    });
+                    modelBuilder.Entity(entityType.ClrType)
+                        .Property(nameof(BaseEntity.Id))
+                        .HasDefaultValueSql("gen_random_uuid()");
                 }
             }
-
-            for (int i = 0; i < 4; i++)
-            {
-                for (int j = 0; j < 6; j++)
-                {
-                    var seatClass = SeatClass.Economy;
-                    seats.Add(new SeatMap
-                    {
-                        Id = Guid.NewGuid(),
-                        FlightId = flight2.Id,
-                        SeatNumber = $"{(char)('A' + j)}{i + 1}",
-                        Class = seatClass,
-                        IsAvailable = true,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
-            }
-
-            modelBuilder.Entity<SeatMap>().HasData(seats);
         }
     }
 }

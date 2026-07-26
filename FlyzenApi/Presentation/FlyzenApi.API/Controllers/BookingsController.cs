@@ -1,50 +1,67 @@
+using FlyzenApi.API.Common;
+using FlyzenApi.Application.DTOs;
+using FlyzenApi.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
-using System.Threading.Tasks;
-using System;
-using FlyzenApi.Application.Features.Bookings.Commands.CreateBooking;
-using FlyzenApi.Domain.Repositories;
 
 namespace FlyzenApi.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Authorize]
+    [Route("api/bookings")]
     public class BookingsController : ControllerBase
     {
-        private readonly IMediator _mediator;
-        private readonly IBookingRepository _bookingRepository;
+        private readonly IBookingService _bookingService;
+        private readonly ITicketService _ticketService;
 
-        public BookingsController(IMediator mediator, IBookingRepository bookingRepository)
+        public BookingsController(IBookingService bookingService, ITicketService ticketService)
         {
-            _mediator = mediator;
-            _bookingRepository = bookingRepository;
+            _bookingService = bookingService;
+            _ticketService = ticketService;
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateBooking([FromBody] CreateBookingCommand command)
-        {
-            var result = await _mediator.Send(command);
-            if (!result.Success)
-                return BadRequest(result.Message);
+        public async Task<ActionResult<BookingDto>> Create(CreateBookingRequest request) =>
+            Ok(await _bookingService.CreateAsync(User.GetUserId(), request));
 
-            return Ok(result);
+        [HttpGet("mine")]
+        public async Task<ActionResult<IEnumerable<BookingDto>>> GetMine() =>
+            Ok(await _bookingService.GetMineAsync(User.GetUserId()));
+
+        [HttpGet("{id:guid}")]
+        public async Task<ActionResult<BookingDto>> GetById(Guid id)
+        {
+            var booking = await _bookingService.GetByIdAsync(id, User.GetUserId());
+            return booking is null ? NotFound() : Ok(booking);
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetBookingById(Guid id)
-        {
-            var booking = await _bookingRepository.GetByIdAsync(id);
-            if (booking == null)
-                return NotFound(new { message = "Booking not found" });
+        [HttpPost("{id:guid}/cancel")]
+        public async Task<ActionResult<BookingDto>> Cancel(Guid id) =>
+            Ok(await _bookingService.CancelAsync(id, User.GetUserId()));
 
-            return Ok(new { success = true, data = booking });
+        [HttpDelete("{id:guid}")]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            await _bookingService.DeleteAsync(id, User.GetUserId());
+            return NoContent();
         }
 
-        [HttpGet("user/{userId}")]
-        public async Task<IActionResult> GetUserBookings(Guid userId)
+        [HttpGet("{id:guid}/ticket")]
+        public async Task<ActionResult<TicketDto>> GetTicket(Guid id)
         {
-            var bookings = await _bookingRepository.GetBookingsByUserIdAsync(userId);
-            return Ok(new { success = true, data = bookings });
+            var booking = await _bookingService.GetByIdAsync(id, User.GetUserId());
+            if (booking is null)
+                return NotFound();
+
+            var ticket = await _ticketService.GetByBookingIdAsync(id);
+            return ticket is null ? NotFound() : Ok(ticket);
+        }
+
+        [HttpPost("{id:guid}/send-ticket")]
+        public async Task<IActionResult> SendTicket(Guid id, SendTicketEmailRequest request)
+        {
+            await _bookingService.SendTicketEmailAsync(id, User.GetUserId(), request.Email);
+            return NoContent();
         }
     }
 }

@@ -1,59 +1,73 @@
+using FlyzenApi.API.Common;
+using FlyzenApi.Application.DTOs;
+using FlyzenApi.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
-using System.Threading.Tasks;
-using System;
-using FlyzenApi.Application.Features.Auth.Commands.Register;
-using FlyzenApi.Application.Features.Auth.Queries.Login;
-using FlyzenApi.Domain.Repositories;
-using System.Security.Claims;
 
 namespace FlyzenApi.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/auth")]
     public class AuthController : ControllerBase
     {
-        private readonly IMediator _mediator;
-        private readonly IUserRepository _userRepository;
+        private readonly IAuthService _authService;
 
-        public AuthController(IMediator mediator, IUserRepository userRepository)
+        public AuthController(IAuthService authService)
         {
-            _mediator = mediator;
-            _userRepository = userRepository;
+            _authService = authService;
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterCommand command)
-        {
-            var result = await _mediator.Send(command);
-            if (!result.Success)
-                return BadRequest(result.Message);
-
-            return Ok(result);
-        }
+        public async Task<ActionResult<RegisterResponse>> Register(RegisterRequest request) =>
+            Ok(await _authService.RegisterAsync(request));
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginQuery query)
-        {
-            var result = await _mediator.Send(query);
-            if (!result.Success)
-                return Unauthorized(result.Message);
+        public async Task<ActionResult<AuthResponse>> Login(LoginRequest request) =>
+            Ok(await _authService.LoginAsync(request));
 
-            return Ok(result);
+        [HttpPost("verify-email")]
+        public async Task<ActionResult<AuthResponse>> VerifyEmail(VerifyEmailRequest request) =>
+            Ok(await _authService.VerifyEmailAsync(request));
+
+        [HttpPost("resend-verification")]
+        public async Task<ActionResult<MessageResponse>> ResendVerification(ResendVerificationRequest request) =>
+            Ok(await _authService.ResendVerificationAsync(request));
+
+        [HttpPost("forgot-password")]
+        public async Task<ActionResult<MessageResponse>> ForgotPassword(ForgotPasswordRequest request)
+        {
+            var appBaseUrl = $"{Request.Scheme}://{Request.Host}";
+            return Ok(await _authService.ForgotPasswordAsync(request, appBaseUrl));
         }
 
+        [HttpPost("reset-password")]
+        public async Task<ActionResult<MessageResponse>> ResetPassword(ResetPasswordRequest request) =>
+            Ok(await _authService.ResetPasswordAsync(request));
+
+        [HttpPost("google")]
+        public async Task<ActionResult<AuthResponse>> GoogleLogin(GoogleLoginRequest request) =>
+            Ok(await _authService.GoogleLoginAsync(request));
+
+        [HttpPost("apple")]
+        public async Task<ActionResult<AuthResponse>> AppleLogin(AppleLoginRequest request) =>
+            Ok(await _authService.AppleLoginAsync(request));
+
         [HttpGet("me")]
-        public async Task<IActionResult> GetMe()
+        [Authorize]
+        public async Task<ActionResult<UserDto>> Me() =>
+            Ok(await _authService.GetProfileAsync(User.GetUserId()));
+
+        [HttpPut("me")]
+        [Authorize]
+        public async Task<ActionResult<UserDto>> UpdateMe(UpdateProfileRequest request) =>
+            Ok(await _authService.UpdateProfileAsync(User.GetUserId(), request));
+
+        [HttpDelete("me")]
+        [Authorize]
+        public async Task<IActionResult> DeleteMe()
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var parsedUserId))
-                return Unauthorized(new { message = "User not authenticated" });
-
-            var user = await _userRepository.GetByIdAsync(parsedUserId);
-            if (user == null)
-                return NotFound(new { message = "User not found" });
-
-            return Ok(new { success = true, data = user });
+            await _authService.DeleteAccountAsync(User.GetUserId());
+            return NoContent();
         }
     }
 }

@@ -1,58 +1,33 @@
+using FlyzenApi.Application.DTOs;
+using FlyzenApi.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
-using System.Threading.Tasks;
-using System;
-using FlyzenApi.Application.Features.Flights.Queries.SearchFlights;
-using FlyzenApi.Domain.Repositories;
 
 namespace FlyzenApi.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/flights")]
     public class FlightsController : ControllerBase
     {
-        private readonly IMediator _mediator;
-        private readonly IFlightRepository _flightRepository;
+        private readonly IFlightService _flightService;
 
-        public FlightsController(IMediator mediator, IFlightRepository flightRepository)
+        public FlightsController(IFlightService flightService)
         {
-            _mediator = mediator;
-            _flightRepository = flightRepository;
+            _flightService = flightService;
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> Search([FromQuery] Guid from, [FromQuery] Guid to, [FromQuery] DateTime departureDate, [FromQuery] int passengers)
+        public async Task<ActionResult<IEnumerable<FlightSummaryDto>>> Search(
+            [FromQuery] Guid fromCityId,
+            [FromQuery] Guid toCityId,
+            [FromQuery] DateTime departureDate,
+            [FromQuery] int passengers = 1) =>
+            Ok(await _flightService.SearchAsync(fromCityId, toCityId, departureDate, passengers));
+
+        [HttpGet("{id:guid}")]
+        public async Task<ActionResult<FlightDetailDto>> GetById(Guid id)
         {
-            var query = new SearchFlightsQuery
-            {
-                FromCityId = from,
-                ToCityId = to,
-                DepartureDate = departureDate,
-                Passengers = passengers
-            };
-
-            var result = await _mediator.Send(query);
-            return Ok(result);
-        }
-
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetFlightById(Guid id)
-        {
-            var flight = await _flightRepository.GetByIdAsync(id);
-            if (flight == null)
-                return NotFound(new { message = "Flight not found" });
-
-            return Ok(new { success = true, data = flight });
-        }
-
-        [HttpGet("{flightId}/seats")]
-        public async Task<IActionResult> GetFlightSeats(Guid flightId)
-        {
-            var flight = await _flightRepository.GetByIdAsync(flightId);
-            if (flight == null)
-                return NotFound(new { message = "Flight not found" });
-
-            return Ok(new { success = true, data = flight.Seats });
+            var flight = await _flightService.GetByIdAsync(id);
+            return flight is null ? NotFound() : Ok(flight);
         }
     }
 }

@@ -1,48 +1,33 @@
+using FlyzenApi.Application.DTOs;
+using FlyzenApi.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
-using System.Threading.Tasks;
-using System;
-using FlyzenApi.Application.Features.Cities.Queries.GetAllCities;
-using FlyzenApi.Application.Features.Cities.Queries.GetCityById;
 
 namespace FlyzenApi.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/cities")]
     public class CitiesController : ControllerBase
     {
-        private readonly IMediator _mediator;
+        private readonly ICityService _cityService;
 
-        public CitiesController(IMediator mediator)
+        public CitiesController(ICityService cityService)
         {
-            _mediator = mediator;
+            _cityService = cityService;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllCities()
+        public async Task<ActionResult<IEnumerable<CityDto>>> GetAll() =>
+            Ok(await _cityService.GetAllAsync());
+
+        [HttpGet("{id:guid}")]
+        public async Task<ActionResult<CityDto>> GetById(Guid id)
         {
-            var result = await _mediator.Send(new GetAllCitiesQuery());
-            return Ok(result);
+            var city = await _cityService.GetByIdAsync(id);
+            return city is null ? NotFound() : Ok(city);
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetCity(Guid id)
-        {
-            var result = await _mediator.Send(new GetCityByIdQuery { Id = id });
-            if (!result.Success)
-                return NotFound(result.Message);
-
-            return Ok(result);
-        }
-
-        [HttpGet("{id}/gallery")]
-        public async Task<IActionResult> GetCityGallery(Guid id)
-        {
-            var result = await _mediator.Send(new GetCityByIdQuery { Id = id });
-            if (!result.Success)
-                return NotFound(result.Message);
-
-            return Ok(result);
-        }
+        [HttpGet("{id:guid}/gallery")]
+        public async Task<ActionResult<IEnumerable<CityGalleryImageDto>>> GetGallery(Guid id) =>
+            Ok(await _cityService.GetGalleryAsync(id));
     }
 }
