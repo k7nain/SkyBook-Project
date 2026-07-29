@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: skybook-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: skybook
+      POSTGRES_USER: skybook
+      POSTGRES_PASSWORD: skybook_dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - skybook-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  skybook-postgres-data:

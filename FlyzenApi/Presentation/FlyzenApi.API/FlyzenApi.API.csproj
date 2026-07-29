@@ -1,13 +1,26 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>83802356-14f9-4766-97e2-52b1b91b2b47</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Core\FlyzenApi.Application\FlyzenApi.Application.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\FlyzenApi.Infrastructure\FlyzenApi.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\FlyzenApi.Persistence\FlyzenApi.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\Core\FlyzenApi.Domain\FlyzenApi.Domain.csproj" />
   </ItemGroup>
 
 </Project>

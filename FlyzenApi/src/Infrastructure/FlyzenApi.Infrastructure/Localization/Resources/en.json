@@ -1,0 +1,71 @@
+{
+  "email": {
+    "footer": "— The SkyBook team",
+    "greeting": "Hi {name},",
+    "verification": {
+      "subject": "Verify your SkyBook email",
+      "title": "Verify your email",
+      "intro": "Thanks for signing up for SkyBook. Use the code below to verify your email address:",
+      "expiry": "This code expires in 10 minutes. If you didn't create a SkyBook account, you can safely ignore this email."
+    },
+    "passwordReset": {
+      "subject": "Reset your SkyBook password",
+      "title": "Reset your password",
+      "intro": "We received a request to reset your SkyBook password. Tap the button below to choose a new one:",
+      "button": "Reset password",
+      "expiry": "This link expires in 20 minutes. If you didn't request a password reset, you can safely ignore this email."
+    },
+    "bookingConfirmed": {
+      "subject": "Your SkyBook reservation - {pnr}",
+      "title": "Your booking is confirmed",
+      "intro": "Your SkyBook reservation is confirmed. Here are the details:",
+      "pnrLabel": "PNR:",
+      "routeLabel": "Route:",
+      "departureLabel": "Departure:",
+      "seatsLabel": "Seat(s):",
+      "totalLabel": "Total paid:",
+      "closing": "Have a great trip!"
+    },
+    "priceChange": {
+      "subject": "Price update for your pending booking",
+      "title": "Price update for your pending booking",
+      "intro": "The price for your pending flight ({route}) has changed:",
+      "closing": "No action is needed unless you'd like to review your booking."
+    },
+    "tripReminder": {
+      "subject": "Your trip is coming up",
+      "title": "Your trip is coming up",
+      "bodyTomorrow": "Just a reminder that your flight ({route}) departs tomorrow, on {departureTime}.",
+      "bodyDays": "Just a reminder that your flight ({route}) departs in {days} days, on {departureTime}.",
+      "closing": "Safe travels!"
+    }
+  },
+  "notifications": {
+    "reservationConfirmed": {
+      "title": "Booking confirmed",
+      "body": "Your booking {pnr} ({route}) is confirmed."
+    },
+    "priceChange": {
+      "title": "Price update for your pending booking",
+      "body": "The price for {route} changed from {oldPrice} to {newPrice}."
+    },
+    "tripReminder": {
+      "title": "Your trip is coming up",
+      "bodyTomorrow": "Your flight {route} departs tomorrow.",
+      "bodyDays": "Your flight {route} departs in {days} days."
+    },
+    "flightDepartureReminder": {
+      "title": "Flight departing soon",
+      "body24h": "Flight {route} departs in less than 24 hours.",
+      "body1h": "Flight {route} departs in less than 1 hour."
+    },
+    "flightDeparted": {
+      "title": "Flight departed",
+      "body": "Flight {route} has departed."
+    },
+    "flightArrived": {
+      "title": "Flight arrived",
+      "body": "Flight {route} has arrived."
+    }
+  }
+}

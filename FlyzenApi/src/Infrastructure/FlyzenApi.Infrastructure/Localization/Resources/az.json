@@ -1,0 +1,71 @@
+{
+  "email": {
+    "footer": "— Skybook komandası",
+    "greeting": "Salam {name},",
+    "verification": {
+      "subject": "Skybook e-poçtunuzu təsdiqləyin",
+      "title": "E-poçtunuzu təsdiqləyin",
+      "intro": "Skybook-da qeydiyyatdan keçdiyiniz üçün təşəkkür edirik. E-poçt ünvanınızı təsdiqləmək üçün aşağıdakı koddan istifadə edin:",
+      "expiry": "Bu kodun etibarlılıq müddəti 10 dəqiqədir. Skybook hesabı yaratmamısınızsa, bu e-poçtu nəzərə almaya bilərsiniz."
+    },
+    "passwordReset": {
+      "subject": "Skybook şifrənizi yeniləyin",
+      "title": "Şifrənizi yeniləyin",
+      "intro": "Skybook şifrənizi yeniləmək üçün sorğu aldıq. Yeni şifrə seçmək üçün aşağıdakı düyməyə basın:",
+      "button": "Şifrəni yenilə",
+      "expiry": "Bu keçidin etibarlılıq müddəti 20 dəqiqədir. Şifrə yeniləməsi tələb etməmisinizsə, bu e-poçtu nəzərə almaya bilərsiniz."
+    },
+    "bookingConfirmed": {
+      "subject": "Skybook rezervasiyanız - {pnr}",
+      "title": "Bronunuz təsdiqləndi",
+      "intro": "Skybook rezervasiyanız təsdiqləndi. Təfərrüatlar aşağıdadır:",
+      "pnrLabel": "PNR:",
+      "routeLabel": "Marşrut:",
+      "departureLabel": "Gediş:",
+      "seatsLabel": "Oturacaq(lar):",
+      "totalLabel": "Ödənilən məbləğ:",
+      "closing": "Yaxşı səyahətlər!"
+    },
+    "priceChange": {
+      "subject": "Gözləmədə olan rezervasiyanız üçün qiymət yeniləməsi",
+      "title": "Gözləmədə olan rezervasiyanız üçün qiymət yeniləməsi",
+      "intro": "Gözləmədə olan uçuşunuzun ({route}) qiyməti dəyişdi:",
+      "closing": "Rezervasiyanızı yoxlamaq istəməsəniz, əlavə hərəkət tələb olunmur."
+    },
+    "tripReminder": {
+      "subject": "Səyahətiniz yaxınlaşır",
+      "title": "Səyahətiniz yaxınlaşır",
+      "bodyTomorrow": "Uçuşunuzun ({route}) sabah, {departureTime} tarixində olacağını xatırladırıq.",
+      "bodyDays": "Uçuşunuzun ({route}) {days} gün ərzində, {departureTime} tarixində olacağını xatırladırıq.",
+      "closing": "Uğurlu səyahətlər!"
+    }
+  },
+  "notifications": {
+    "reservationConfirmed": {
+      "title": "Rezervasiya təsdiqləndi",
+      "body": "{pnr} ({route}) nömrəli rezervasiyanız təsdiqləndi."
+    },
+    "priceChange": {
+      "title": "Gözləmədə olan rezervasiyanız üçün qiymət yeniləməsi",
+      "body": "{route} üçün qiymət {oldPrice}-dan {newPrice}-a dəyişdi."
+    },
+    "tripReminder": {
+      "title": "Səyahətiniz yaxınlaşır",
+      "bodyTomorrow": "{route} uçuşunuz sabah yola düşür.",
+      "bodyDays": "{route} uçuşunuz {days} gün ərzində yola düşür."
+    },
+    "flightDepartureReminder": {
+      "title": "Uçuş tezliklə yola düşür",
+      "body24h": "{route} uçuşu 24 saatdan az müddətdə yola düşür.",
+      "body1h": "{route} uçuşu 1 saatdan az müddətdə yola düşür."
+    },
+    "flightDeparted": {
+      "title": "Uçuş yola düşdü",
+      "body": "{route} uçuşu yola düşdü."
+    },
+    "flightArrived": {
+      "title": "Uçuş çatdı",
+      "body": "{route} uçuşu təyinat nöqtəsinə çatdı."
+    }
+  }
+}

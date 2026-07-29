@@ -12,4 +12,12 @@
     <Folder Include="Interfaces\Services\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\FlyzenApi.Domain\FlyzenApi.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="8.0.10" />
+  </ItemGroup>
+
 </Project>

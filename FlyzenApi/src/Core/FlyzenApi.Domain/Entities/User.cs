@@ -11,10 +11,31 @@ namespace FlyzenApi.Domain.Entities
         public string LastName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
-        public string PasswordHash { get; set; } = string.Empty;
+        public string? PasswordHash { get; set; }
         public string? ProfilePictureUrl { get; set; }
-        public string CurrencyPreference { get; set; } = "USD";
-        public string LanguagePreference { get; set; } = "en";
+        public string CurrencyPreference { get; set; } = "AZN";
+        // ISO 639-1-ish app language code: "az" | "en" | "ru" (see src/i18n on the
+        // client). Drives which language backend-generated notifications/emails
+        // render in - see ITranslationService.
+        public string LanguagePreference { get; set; } = "az";
+        // IANA time zone name (e.g. "Asia/Baku"). Null means "not set" - the
+        // client falls back to the device's local time zone in that case.
+        public string? PreferredTimezone { get; set; }
+        public UserRole Role { get; set; } = UserRole.User;
+
+        public bool IsEmailConfirmed { get; set; } = false;
+        public string? EmailVerificationCodeHash { get; set; }
+        public DateTime? EmailVerificationExpiresAt { get; set; }
+        public DateTime? EmailVerificationLastSentAt { get; set; }
+
+        public string? PasswordResetTokenHash { get; set; }
+        public DateTime? PasswordResetExpiresAt { get; set; }
+        public DateTime? PasswordResetLastSentAt { get; set; }
+
+        public int TokenVersion { get; set; } = 0;
+
+        public string? GoogleId { get; set; }
+        public string? AppleId { get; set; }
 
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     }

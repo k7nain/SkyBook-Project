@@ -12,5 +12,8 @@ namespace FlyzenApi.Domain.Entities
         public SeatClass Class { get; set; }
         public bool IsAvailable { get; set; } = true;
         public decimal PriceMultiplier { get; set; } = 1.0m;
+
+        public Guid? BookingId { get; set; }
+        public Booking? Booking { get; set; }
     }
 }

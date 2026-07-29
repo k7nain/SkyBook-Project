@@ -9,7 +9,12 @@ namespace FlyzenApi.Domain.Repositories
     {
         Task<Booking?> GetByIdAsync(Guid id);
         Task<IEnumerable<Booking>> GetByUserIdAsync(Guid userId);
+        Task<IEnumerable<Booking>> GetAllAsync();
+        Task<IEnumerable<Booking>> GetActiveBookingsByFlightIdAsync(Guid flightId);
+        Task<bool> HasAnyForFlightAsync(Guid flightId);
+        Task<IEnumerable<Booking>> GetBookingsDepartingOnAsync(DateTime dateUtc);
         Task AddAsync(Booking booking);
         Task UpdateAsync(Booking booking);
+        Task DeleteAsync(Booking booking);
     }
 }

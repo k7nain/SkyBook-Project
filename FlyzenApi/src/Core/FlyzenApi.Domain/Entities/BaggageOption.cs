@@ -7,5 +7,7 @@ namespace FlyzenApi.Domain.Entities
         public string Name { get; set; } = string.Empty;
         public int WeightKg { get; set; }
         public decimal Price { get; set; }
+        public string Currency { get; set; } = "AZN";
+        public int DisplayOrder { get; set; }
     }
 }

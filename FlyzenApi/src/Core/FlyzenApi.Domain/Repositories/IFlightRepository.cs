@@ -10,5 +10,12 @@ namespace FlyzenApi.Domain.Repositories
         Task<IEnumerable<Flight>> SearchAsync(Guid fromCityId, Guid toCityId, DateTime departureDate, int passengersCount);
         Task<Flight?> GetByIdAsync(Guid id);
         Task<IEnumerable<SeatMap>> GetSeatsByFlightIdAsync(Guid flightId);
+        Task<IEnumerable<Flight>> GetAllAsync();
+        // Flights not yet fully completed - the set FlightNotificationBackgroundService
+        // needs to check on each run (departure/arrival reminders + status transitions).
+        Task<IEnumerable<Flight>> GetActiveForNotificationCheckAsync();
+        Task AddAsync(Flight flight);
+        Task UpdateAsync(Flight flight);
+        Task DeleteAsync(Flight flight);
     }
 }
