@@ -16,7 +16,7 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
 
         public async Task<IEnumerable<TripCountry>> GetAllAsync() =>
             await _context.TripCountries
-                .OrderBy(c => c.Name)
+                .OrderBy(c => c.NameEn)
                 .ToListAsync();
 
         public Task<TripCountry?> GetByIdAsync(Guid id) =>

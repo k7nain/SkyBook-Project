@@ -5,7 +5,9 @@ namespace FlyzenApi.Application.DTOs
     public class TripCountryDto
     {
         public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
+        public string NameAz { get; set; } = string.Empty;
+        public string? NameEn { get; set; }
+        public string? NameRu { get; set; }
         public string FlagCode { get; set; } = string.Empty;
         public string? CoverImage { get; set; }
         public DateTime CreatedAt { get; set; }
@@ -14,7 +16,13 @@ namespace FlyzenApi.Application.DTOs
     public class CreateTripCountryRequest
     {
         [Required, MaxLength(100)]
-        public string Name { get; set; } = string.Empty;
+        public string NameAz { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string? NameEn { get; set; }
+
+        [MaxLength(100)]
+        public string? NameRu { get; set; }
 
         [Required, StringLength(2, MinimumLength = 2)]
         public string FlagCode { get; set; } = string.Empty;
@@ -25,7 +33,13 @@ namespace FlyzenApi.Application.DTOs
     public class UpdateTripCountryRequest
     {
         [Required, MaxLength(100)]
-        public string Name { get; set; } = string.Empty;
+        public string NameAz { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string? NameEn { get; set; }
+
+        [MaxLength(100)]
+        public string? NameRu { get; set; }
 
         [Required, StringLength(2, MinimumLength = 2)]
         public string FlagCode { get; set; } = string.Empty;

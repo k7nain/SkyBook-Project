@@ -18,6 +18,7 @@ namespace FlyzenApi.API.Controllers
         private readonly ITripCityService _tripCityService;
         private readonly ITripPlaceService _tripPlaceService;
         private readonly IPromoCodeService _promoCodeService;
+        private readonly IContentTranslationService _contentTranslationService;
 
         public AdminController(
             IAdminService adminService,
@@ -26,7 +27,8 @@ namespace FlyzenApi.API.Controllers
             ITripCountryService tripCountryService,
             ITripCityService tripCityService,
             ITripPlaceService tripPlaceService,
-            IPromoCodeService promoCodeService)
+            IPromoCodeService promoCodeService,
+            IContentTranslationService contentTranslationService)
         {
             _adminService = adminService;
             _airlineService = airlineService;
@@ -35,6 +37,7 @@ namespace FlyzenApi.API.Controllers
             _tripCityService = tripCityService;
             _tripPlaceService = tripPlaceService;
             _promoCodeService = promoCodeService;
+            _contentTranslationService = contentTranslationService;
         }
 
         [HttpGet("bookings")]
@@ -78,6 +81,16 @@ namespace FlyzenApi.API.Controllers
         [HttpGet("exchange-rates")]
         public async Task<ActionResult<ExchangeRatesDto>> GetExchangeRates() =>
             Ok(await _adminService.GetExchangeRatesAsync());
+
+        /// <summary>
+        /// Aggregate dashboard statistics: revenue (total + by currency + last
+        /// 6 months trend), booking counts by status, total verified users, and
+        /// total flights. One call for everything an admin dashboard's stat
+        /// cards/charts need - suitable for both the mobile and web admin panels.
+        /// </summary>
+        [HttpGet("statistics")]
+        public async Task<ActionResult<AdminStatisticsDto>> GetStatistics() =>
+            Ok(await _adminService.GetStatisticsAsync());
 
         [HttpPost("airlines")]
         public async Task<ActionResult<AirlineDto>> CreateAirline(CreateAirlineRequest request) =>
@@ -139,6 +152,18 @@ namespace FlyzenApi.API.Controllers
         [HttpPost("trip-places/{id:guid}/gallery")]
         public async Task<ActionResult<TripPlaceImageDto>> AddTripPlaceImage(Guid id, AddTripPlaceImageRequest request) =>
             Ok(await _tripPlaceService.AddImageAsync(id, request));
+
+        [HttpPost("translate")]
+        public async Task<ActionResult<ContentTranslateResponse>> Translate(ContentTranslateRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _contentTranslationService.TranslateAsync(
+                request.Text, request.SourceLang, request.TargetLangs, request.Kind, cancellationToken);
+            return Ok(new ContentTranslateResponse
+            {
+                Translations = result.Translations.ToDictionary(kv => kv.Key, kv => kv.Value),
+                FailedLangs = result.FailedLangs.ToList(),
+            });
+        }
 
         [HttpGet("promo-codes")]
         public async Task<ActionResult<IEnumerable<PromoCodeDto>>> GetAllPromoCodes() =>

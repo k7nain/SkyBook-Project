@@ -54,6 +54,9 @@ namespace FlyzenApi.Application.Implementations.Services
         public async Task DeleteAllAsync(Guid userId) =>
             await _notificationRepository.DeleteAllByUserIdAsync(userId);
 
+        public async Task MarkAllAsReadAsync(Guid userId) =>
+            await _notificationRepository.MarkAllAsReadByUserIdAsync(userId);
+
         public async Task CreateAsync(
             User recipient,
             string titleKey,

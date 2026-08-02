@@ -27,13 +27,19 @@ namespace FlyzenApi.Application.Implementations.Services
         {
             var flagCode = ValidateFlagCode(request.FlagCode);
 
+            // Keyed on NameAz, not NameEn - NameEn is now filled asynchronously by
+            // auto-translate and can be null for multiple rows at once (pending
+            // translation), which would make an EN-based check either miss real
+            // duplicates or spuriously flag unrelated countries as conflicting.
             var existing = await _countryRepository.GetAllAsync();
-            if (existing.Any(c => string.Equals(c.Name, request.Name, StringComparison.OrdinalIgnoreCase)))
+            if (existing.Any(c => string.Equals(c.NameAz, request.NameAz, StringComparison.OrdinalIgnoreCase)))
                 throw new ConflictException("A country with this name already exists.");
 
             var country = new TripCountry
             {
-                Name = request.Name,
+                NameAz = request.NameAz,
+                NameEn = request.NameEn,
+                NameRu = request.NameRu,
                 FlagCode = flagCode,
                 CoverImage = request.CoverImage,
             };
@@ -47,7 +53,9 @@ namespace FlyzenApi.Application.Implementations.Services
             var country = await _countryRepository.GetByIdAsync(id)
                 ?? throw new NotFoundException("Country not found.");
 
-            country.Name = request.Name;
+            country.NameAz = request.NameAz;
+            country.NameEn = request.NameEn;
+            country.NameRu = request.NameRu;
             country.FlagCode = ValidateFlagCode(request.FlagCode);
             country.CoverImage = request.CoverImage;
 

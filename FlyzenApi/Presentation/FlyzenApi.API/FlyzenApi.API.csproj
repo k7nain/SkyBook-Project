@@ -5,6 +5,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>83802356-14f9-4766-97e2-52b1b91b2b47</UserSecretsId>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CS1591: most existing controllers have no XML doc comments yet - only
+         warn for the ones that do, don't force documenting everything at once. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

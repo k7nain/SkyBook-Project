@@ -10,7 +10,7 @@ namespace FlyzenApi.Persistence.DAL
         public AppDbContext CreateDbContext(string[] args)
         {
             var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-            optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=skybook;Username=skybook;Password=skybook_dev_password");
+            optionsBuilder.UseNpgsql("Host=localhost;Port=5433;Database=skybook;Username=skybook;Password=skybook_dev_password");
             return new AppDbContext(optionsBuilder.Options);
         }
     }

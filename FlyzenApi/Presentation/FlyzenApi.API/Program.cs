@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using FlyzenApi.API.Middleware;
@@ -11,6 +12,7 @@ using FlyzenApi.Infrastructure.Currency;
 using FlyzenApi.Infrastructure.Email;
 using FlyzenApi.Infrastructure.Localization;
 using FlyzenApi.Infrastructure.Notifications;
+using FlyzenApi.Infrastructure.Translation;
 using FlyzenApi.Persistence.DAL;
 using FlyzenApi.Persistence.Implementations;
 using FlyzenApi.Persistence.Implementations.Repositories;
@@ -38,6 +40,7 @@ namespace FlyzenApi.API
             builder.Services.Configure<AppleAuthOptions>(builder.Configuration.GetSection(AppleAuthOptions.SectionName));
             builder.Services.Configure<NotificationOptions>(builder.Configuration.GetSection(NotificationOptions.SectionName));
             builder.Services.Configure<CurrencyOptions>(builder.Configuration.GetSection(CurrencyOptions.SectionName));
+            builder.Services.Configure<ContentTranslationOptions>(builder.Configuration.GetSection(ContentTranslationOptions.SectionName));
 
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -84,6 +87,7 @@ namespace FlyzenApi.API
             builder.Services.AddSingleton<ITranslationService, TranslationService>();
             builder.Services.AddHttpClient();
             builder.Services.AddSingleton<ICurrencyConversionService, CbarCurrencyConversionService>();
+            builder.Services.AddHttpClient<IContentTranslationService, ContentTranslationService>();
             builder.Services.AddHostedService<TripReminderBackgroundService>();
             builder.Services.AddHostedService<FlightNotificationBackgroundService>();
 
@@ -159,6 +163,11 @@ namespace FlyzenApi.API
                 };
                 options.AddSecurityDefinition("Bearer", securityScheme);
                 options.AddSecurityRequirement(new OpenApiSecurityRequirement { { securityScheme, Array.Empty<string>() } });
+
+                var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+                if (File.Exists(xmlPath))
+                    options.IncludeXmlComments(xmlPath);
             });
 
             var app = builder.Build();

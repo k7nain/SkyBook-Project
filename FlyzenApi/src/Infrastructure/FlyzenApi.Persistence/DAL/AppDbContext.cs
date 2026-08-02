@@ -215,7 +215,9 @@ namespace FlyzenApi.Persistence.DAL
 
             modelBuilder.Entity<TripCountry>(b =>
             {
-                b.Property(c => c.Name).IsRequired().HasMaxLength(100);
+                b.Property(c => c.NameAz).IsRequired().HasMaxLength(100);
+                b.Property(c => c.NameEn).HasMaxLength(100);
+                b.Property(c => c.NameRu).HasMaxLength(100);
                 b.Property(c => c.FlagCode).IsRequired().HasMaxLength(2);
 
                 b.HasMany(c => c.Cities)
@@ -226,8 +228,12 @@ namespace FlyzenApi.Persistence.DAL
 
             modelBuilder.Entity<TripCity>(b =>
             {
-                b.Property(c => c.Name).IsRequired().HasMaxLength(100);
-                b.Property(c => c.ShortDescription).HasMaxLength(500);
+                b.Property(c => c.NameAz).IsRequired().HasMaxLength(100);
+                b.Property(c => c.NameEn).HasMaxLength(100);
+                b.Property(c => c.NameRu).HasMaxLength(100);
+                b.Property(c => c.ShortDescriptionAz).HasMaxLength(500);
+                b.Property(c => c.ShortDescriptionEn).HasMaxLength(500);
+                b.Property(c => c.ShortDescriptionRu).HasMaxLength(500);
 
                 b.HasMany(c => c.Places)
                     .WithOne(p => p.City)
@@ -237,8 +243,12 @@ namespace FlyzenApi.Persistence.DAL
 
             modelBuilder.Entity<TripPlace>(b =>
             {
-                b.Property(p => p.Name).IsRequired().HasMaxLength(150);
-                b.Property(p => p.Description).HasMaxLength(2000);
+                b.Property(p => p.NameAz).IsRequired().HasMaxLength(150);
+                b.Property(p => p.NameEn).HasMaxLength(150);
+                b.Property(p => p.NameRu).HasMaxLength(150);
+                b.Property(p => p.DescriptionAz).HasMaxLength(2000);
+                b.Property(p => p.DescriptionEn).HasMaxLength(2000);
+                b.Property(p => p.DescriptionRu).HasMaxLength(2000);
                 b.Property(p => p.Category).HasMaxLength(50);
 
                 b.HasMany(p => p.Images)

@@ -59,6 +59,8 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
                 .OrderByDescending(f => f.DepartureTime)
                 .ToListAsync();
 
+        public Task<int> CountAsync() => _context.Flights.CountAsync();
+
         public async Task<IEnumerable<Flight>> GetActiveForNotificationCheckAsync() =>
             await _context.Flights
                 .Include(f => f.DepartureCity)

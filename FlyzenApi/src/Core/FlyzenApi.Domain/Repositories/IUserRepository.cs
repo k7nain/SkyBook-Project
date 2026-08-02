@@ -14,6 +14,9 @@ namespace FlyzenApi.Domain.Repositories
         Task<User?> GetByPasswordResetTokenHashAsync(string tokenHash);
         Task<IEnumerable<User>> GetAllAsync(bool? isEmailConfirmed = null);
         Task<IEnumerable<User>> GetAdminsAsync();
+        // Statistics-only: a plain COUNT rather than loading every User row via
+        // GetAllAsync just to take .Count() of it.
+        Task<int> CountAsync(bool? isEmailConfirmed = null);
         Task AddAsync(User user);
         Task UpdateAsync(User user);
         Task DeleteAsync(User user);

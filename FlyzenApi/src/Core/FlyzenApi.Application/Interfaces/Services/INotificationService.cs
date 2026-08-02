@@ -10,6 +10,7 @@ namespace FlyzenApi.Application.Interfaces.Services
         Task MarkAsReadAsync(Guid id, Guid userId);
         Task DeleteAsync(Guid id, Guid userId);
         Task DeleteAllAsync(Guid userId);
+        Task MarkAllAsReadAsync(Guid userId);
 
         // Called from other services (booking creation, admin flight-price updates,
         // the trip-reminder/flight-notification background jobs) - not exposed via

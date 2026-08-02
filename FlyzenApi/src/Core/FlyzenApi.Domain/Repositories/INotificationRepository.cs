@@ -13,5 +13,6 @@ namespace FlyzenApi.Domain.Repositories
         Task UpdateAsync(Notification notification);
         Task DeleteAsync(Notification notification);
         Task DeleteAllByUserIdAsync(Guid userId);
+        Task MarkAllAsReadByUserIdAsync(Guid userId);
     }
 }

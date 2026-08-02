@@ -29,16 +29,22 @@ namespace FlyzenApi.Application.Implementations.Services
             _ = await _countryRepository.GetByIdAsync(request.CountryId)
                 ?? throw new NotFoundException("Country not found.");
 
+            // Keyed on NameAz - see TripCountryService.CreateAsync for why (NameEn is
+            // now filled asynchronously and can be null for multiple rows at once).
             var existing = await _cityRepository.GetByCountryIdAsync(request.CountryId);
-            if (existing.Any(c => string.Equals(c.Name, request.Name, StringComparison.OrdinalIgnoreCase)))
+            if (existing.Any(c => string.Equals(c.NameAz, request.NameAz, StringComparison.OrdinalIgnoreCase)))
                 throw new ConflictException("A city with this name already exists in this country.");
 
             var city = new TripCity
             {
                 CountryId = request.CountryId,
-                Name = request.Name,
+                NameAz = request.NameAz,
+                NameEn = request.NameEn,
+                NameRu = request.NameRu,
                 Image = request.Image,
-                ShortDescription = request.ShortDescription,
+                ShortDescriptionAz = request.ShortDescriptionAz,
+                ShortDescriptionEn = request.ShortDescriptionEn,
+                ShortDescriptionRu = request.ShortDescriptionRu,
             };
 
             await _cityRepository.AddAsync(city);
@@ -50,9 +56,13 @@ namespace FlyzenApi.Application.Implementations.Services
             var city = await _cityRepository.GetByIdAsync(id)
                 ?? throw new NotFoundException("City not found.");
 
-            city.Name = request.Name;
+            city.NameAz = request.NameAz;
+            city.NameEn = request.NameEn;
+            city.NameRu = request.NameRu;
             city.Image = request.Image;
-            city.ShortDescription = request.ShortDescription;
+            city.ShortDescriptionAz = request.ShortDescriptionAz;
+            city.ShortDescriptionEn = request.ShortDescriptionEn;
+            city.ShortDescriptionRu = request.ShortDescriptionRu;
 
             await _cityRepository.UpdateAsync(city);
             return city.ToDto();

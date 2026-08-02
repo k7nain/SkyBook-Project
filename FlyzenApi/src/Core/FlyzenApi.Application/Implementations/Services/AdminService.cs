@@ -252,6 +252,41 @@ namespace FlyzenApi.Application.Implementations.Services
             await _flightRepository.DeleteAsync(flight);
         }
 
+        private const int RevenueTrendMonths = 6;
+
+        public async Task<AdminStatisticsDto> GetStatisticsAsync()
+        {
+            var statusCounts = await _bookingRepository.GetStatusCountsAsync();
+            var revenueByCurrency = await _bookingRepository.GetRevenueByCurrencyAsync();
+            var trend = await _bookingRepository.GetMonthlyRevenueTrendAsync(RevenueTrendMonths);
+            var totalUsers = await _userRepository.CountAsync(isEmailConfirmed: true);
+            var totalFlights = await _flightRepository.CountAsync();
+            var totalBookings = await _bookingRepository.CountAsync();
+
+            // Every booking is stored in a single currency today (AZN - see
+            // CreateFlightAsync's ConvertToBaseAsync call), so summing the
+            // per-currency dictionary is exact, not an unsafe cross-currency add;
+            // this only stops being exact if Booking ever legitimately stores more
+            // than one currency, at which point TotalRevenue would need real
+            // conversion via ICurrencyConversionService.
+            var totalRevenue = revenueByCurrency.Values.Sum();
+
+            return new AdminStatisticsDto
+            {
+                TotalRevenue = totalRevenue,
+                RevenueByCurrency = revenueByCurrency,
+                TotalBookings = totalBookings,
+                ConfirmedBookings = statusCounts.GetValueOrDefault(BookingStatus.Confirmed, 0),
+                PendingBookings = statusCounts.GetValueOrDefault(BookingStatus.Pending, 0),
+                CancelledBookings = statusCounts.GetValueOrDefault(BookingStatus.Cancelled, 0),
+                TotalUsers = totalUsers,
+                TotalFlights = totalFlights,
+                RevenueTrend = trend
+                    .Select(p => new RevenueTrendPointDto { Period = $"{p.Year:D4}-{p.Month:D2}", Revenue = p.Revenue })
+                    .ToList(),
+            };
+        }
+
         private static List<SeatMap> BuildSeatMap()
         {
             var seats = new List<SeatMap>();

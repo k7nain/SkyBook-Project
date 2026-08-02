@@ -29,6 +29,13 @@ namespace FlyzenApi.API.Controllers
             return NoContent();
         }
 
+        [HttpPost("read-all")]
+        public async Task<IActionResult> MarkAllAsRead()
+        {
+            await _notificationService.MarkAllAsReadAsync(User.GetUserId());
+            return NoContent();
+        }
+
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id)
         {

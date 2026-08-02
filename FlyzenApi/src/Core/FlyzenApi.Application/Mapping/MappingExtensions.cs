@@ -89,7 +89,9 @@ namespace FlyzenApi.Application.Mapping
         public static TripCountryDto ToDto(this TripCountry country) => new()
         {
             Id = country.Id,
-            Name = country.Name,
+            NameAz = country.NameAz,
+            NameEn = country.NameEn,
+            NameRu = country.NameRu,
             FlagCode = country.FlagCode,
             CoverImage = country.CoverImage,
             CreatedAt = country.CreatedAt,
@@ -99,17 +101,25 @@ namespace FlyzenApi.Application.Mapping
         {
             Id = city.Id,
             CountryId = city.CountryId,
-            Name = city.Name,
+            NameAz = city.NameAz,
+            NameEn = city.NameEn,
+            NameRu = city.NameRu,
             Image = city.Image,
-            ShortDescription = city.ShortDescription,
+            ShortDescriptionAz = city.ShortDescriptionAz,
+            ShortDescriptionEn = city.ShortDescriptionEn,
+            ShortDescriptionRu = city.ShortDescriptionRu,
         };
 
         public static TripPlaceDto ToDto(this TripPlace place) => new()
         {
             Id = place.Id,
             CityId = place.CityId,
-            Name = place.Name,
-            Description = place.Description,
+            NameAz = place.NameAz,
+            NameEn = place.NameEn,
+            NameRu = place.NameRu,
+            DescriptionAz = place.DescriptionAz,
+            DescriptionEn = place.DescriptionEn,
+            DescriptionRu = place.DescriptionRu,
             Category = place.Category,
             Latitude = place.Latitude,
             Longitude = place.Longitude,

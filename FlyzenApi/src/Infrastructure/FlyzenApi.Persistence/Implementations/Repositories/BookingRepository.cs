@@ -96,5 +96,42 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
             _context.Bookings.Remove(booking);
             await _context.SaveChangesAsync();
         }
+
+        public Task<int> CountAsync() => _context.Bookings.CountAsync();
+
+        public async Task<Dictionary<BookingStatus, int>> GetStatusCountsAsync()
+        {
+            var counts = await _context.Bookings
+                .GroupBy(b => b.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            return counts.ToDictionary(c => c.Status, c => c.Count);
+        }
+
+        public async Task<Dictionary<string, decimal>> GetRevenueByCurrencyAsync()
+        {
+            var totals = await _context.Bookings
+                .Where(b => b.Status != BookingStatus.Cancelled)
+                .GroupBy(b => b.Currency)
+                .Select(g => new { Currency = g.Key, Total = g.Sum(b => b.TotalPrice) })
+                .ToListAsync();
+
+            return totals.ToDictionary(t => t.Currency, t => t.Total);
+        }
+
+        public async Task<IReadOnlyList<MonthlyRevenuePoint>> GetMonthlyRevenueTrendAsync(int monthsBack)
+        {
+            var cutoff = DateTime.UtcNow.Date.AddMonths(-monthsBack + 1);
+            cutoff = new DateTime(cutoff.Year, cutoff.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            var points = await _context.Bookings
+                .Where(b => b.Status != BookingStatus.Cancelled && b.CreatedAt >= cutoff)
+                .GroupBy(b => new { b.CreatedAt.Year, b.CreatedAt.Month })
+                .Select(g => new MonthlyRevenuePoint(g.Key.Year, g.Key.Month, g.Sum(b => b.TotalPrice)))
+                .ToListAsync();
+
+            return points.OrderBy(p => p.Year).ThenBy(p => p.Month).ToList();
+        }
     }
 }

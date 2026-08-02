@@ -32,15 +32,21 @@ namespace FlyzenApi.Application.Implementations.Services
             _ = await _cityRepository.GetByIdAsync(request.CityId)
                 ?? throw new NotFoundException("City not found.");
 
+            // Keyed on NameAz - see TripCountryService.CreateAsync for why (NameEn is
+            // now filled asynchronously and can be null for multiple rows at once).
             var existing = await _placeRepository.GetByCityIdAsync(request.CityId);
-            if (existing.Any(p => string.Equals(p.Name, request.Name, StringComparison.OrdinalIgnoreCase)))
+            if (existing.Any(p => string.Equals(p.NameAz, request.NameAz, StringComparison.OrdinalIgnoreCase)))
                 throw new ConflictException("A place with this name already exists in this city.");
 
             var place = new TripPlace
             {
                 CityId = request.CityId,
-                Name = request.Name,
-                Description = request.Description,
+                NameAz = request.NameAz,
+                NameEn = request.NameEn,
+                NameRu = request.NameRu,
+                DescriptionAz = request.DescriptionAz,
+                DescriptionEn = request.DescriptionEn,
+                DescriptionRu = request.DescriptionRu,
                 Category = request.Category,
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
@@ -55,8 +61,12 @@ namespace FlyzenApi.Application.Implementations.Services
             var place = await _placeRepository.GetByIdAsync(id)
                 ?? throw new NotFoundException("Place not found.");
 
-            place.Name = request.Name;
-            place.Description = request.Description;
+            place.NameAz = request.NameAz;
+            place.NameEn = request.NameEn;
+            place.NameRu = request.NameRu;
+            place.DescriptionAz = request.DescriptionAz;
+            place.DescriptionEn = request.DescriptionEn;
+            place.DescriptionRu = request.DescriptionRu;
             place.Category = request.Category;
             place.Latitude = request.Latitude;
             place.Longitude = request.Longitude;

@@ -14,5 +14,6 @@ namespace FlyzenApi.Application.Interfaces.Services
         Task<FlightSummaryDto> UpdateFlightPriceAsync(Guid flightId, UpdateFlightPriceRequest request);
         Task DeleteFlightAsync(Guid flightId);
         Task<ExchangeRatesDto> GetExchangeRatesAsync();
+        Task<AdminStatisticsDto> GetStatisticsAsync();
     }
 }

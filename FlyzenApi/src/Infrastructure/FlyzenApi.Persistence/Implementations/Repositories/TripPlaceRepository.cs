@@ -17,7 +17,7 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
         public async Task<IEnumerable<TripPlace>> GetByCityIdAsync(Guid cityId) =>
             await _context.TripPlaces
                 .Where(p => p.CityId == cityId)
-                .OrderBy(p => p.Name)
+                .OrderBy(p => p.NameEn)
                 .ToListAsync();
 
         public Task<TripPlace?> GetByIdAsync(Guid id) =>

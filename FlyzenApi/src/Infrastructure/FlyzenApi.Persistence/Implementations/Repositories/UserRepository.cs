@@ -42,6 +42,15 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
         public async Task<IEnumerable<User>> GetAdminsAsync() =>
             await _context.Users.Where(u => u.Role == UserRole.Admin).ToListAsync();
 
+        public Task<int> CountAsync(bool? isEmailConfirmed = null)
+        {
+            var query = _context.Users.AsQueryable();
+            if (isEmailConfirmed is not null)
+                query = query.Where(u => u.IsEmailConfirmed == isEmailConfirmed);
+
+            return query.CountAsync();
+        }
+
         public async Task AddAsync(User user)
         {
             await _context.Users.AddAsync(user);
