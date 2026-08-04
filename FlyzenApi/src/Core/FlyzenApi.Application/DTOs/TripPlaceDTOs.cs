@@ -22,6 +22,7 @@ namespace FlyzenApi.Application.DTOs
         public Guid Id { get; set; }
         public Guid PlaceId { get; set; }
         public string ImageUrl { get; set; } = string.Empty;
+        public int DisplayOrder { get; set; }
     }
 
     public class CreateTripPlaceRequest
@@ -91,5 +92,11 @@ namespace FlyzenApi.Application.DTOs
     {
         [Required]
         public string ImageUrl { get; set; } = string.Empty;
+    }
+
+    public class ReorderTripPlaceGalleryRequest
+    {
+        [Required]
+        public List<Guid> ImageIds { get; set; } = new();
     }
 }

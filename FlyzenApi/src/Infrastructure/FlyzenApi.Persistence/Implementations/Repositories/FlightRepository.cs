@@ -21,6 +21,11 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
             // query-string dates arrive as Kind=Unspecified.
             var dayStart = DateTime.SpecifyKind(departureDate.Date, DateTimeKind.Utc);
             var dayEnd = dayStart.AddDays(1);
+            // Booking cutoff: stop offering a flight once we're within
+            // Flight.BookingCutoffHours of its departure, not just once it's
+            // already departed. Evaluated fresh on every call so it reflects
+            // the current time, not the search date.
+            var bookingCutoff = DateTime.UtcNow.AddHours(Flight.BookingCutoffHours);
 
             return await _context.Flights
                 .Include(f => f.DepartureCity)
@@ -31,6 +36,7 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
                             && f.ArrivalCityId == toCityId
                             && f.DepartureTime >= dayStart
                             && f.DepartureTime < dayEnd
+                            && f.DepartureTime > bookingCutoff
                             && f.Seats.Count(s => s.IsAvailable) >= passengersCount)
                 .OrderBy(f => f.DepartureTime)
                 .ToListAsync();

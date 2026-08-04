@@ -130,6 +130,7 @@ namespace FlyzenApi.Application.Mapping
             Id = image.Id,
             PlaceId = image.PlaceId,
             ImageUrl = image.ImageUrl,
+            DisplayOrder = image.DisplayOrder,
         };
 
         public static SeatDto ToDto(this SeatMap seat, decimal basePrice) => new()

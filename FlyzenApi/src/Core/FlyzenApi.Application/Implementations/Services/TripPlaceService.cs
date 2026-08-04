@@ -11,11 +11,13 @@ namespace FlyzenApi.Application.Implementations.Services
     {
         private readonly ITripPlaceRepository _placeRepository;
         private readonly ITripCityRepository _cityRepository;
+        private readonly IFileStorageService _fileStorageService;
 
-        public TripPlaceService(ITripPlaceRepository placeRepository, ITripCityRepository cityRepository)
+        public TripPlaceService(ITripPlaceRepository placeRepository, ITripCityRepository cityRepository, IFileStorageService fileStorageService)
         {
             _placeRepository = placeRepository;
             _cityRepository = cityRepository;
+            _fileStorageService = fileStorageService;
         }
 
         public async Task<IEnumerable<TripPlaceDto>> GetByCityIdAsync(Guid cityId) =>
@@ -88,14 +90,45 @@ namespace FlyzenApi.Application.Implementations.Services
             _ = await _placeRepository.GetByIdAsync(placeId)
                 ?? throw new NotFoundException("Place not found.");
 
+            var existingGallery = await _placeRepository.GetGalleryByPlaceIdAsync(placeId);
+
             var image = new TripPlaceImage
             {
                 PlaceId = placeId,
                 ImageUrl = request.ImageUrl,
+                DisplayOrder = existingGallery.Count(),
             };
 
             await _placeRepository.AddGalleryImageAsync(image);
             return image.ToDto();
+        }
+
+        public async Task DeleteImageAsync(Guid placeId, Guid imageId)
+        {
+            var image = await _placeRepository.GetGalleryImageByIdAsync(imageId);
+            if (image is null || image.PlaceId != placeId)
+                throw new NotFoundException("Image not found.");
+
+            await _placeRepository.DeleteGalleryImageAsync(image);
+            _fileStorageService.DeleteIfLocal(image.ImageUrl);
+        }
+
+        public async Task<IEnumerable<TripPlaceImageDto>> ReorderGalleryAsync(Guid placeId, List<Guid> imageIds)
+        {
+            var gallery = (await _placeRepository.GetGalleryByPlaceIdAsync(placeId)).ToList();
+            if (imageIds.Count != gallery.Count || imageIds.Distinct().Count() != gallery.Count)
+                throw new BadRequestException("imageIds must contain exactly the place's current gallery image IDs.");
+
+            var byId = gallery.ToDictionary(i => i.Id);
+            for (var index = 0; index < imageIds.Count; index++)
+            {
+                if (!byId.TryGetValue(imageIds[index], out var image))
+                    throw new BadRequestException("imageIds must contain exactly the place's current gallery image IDs.");
+                image.DisplayOrder = index;
+            }
+
+            await _placeRepository.SaveChangesAsync();
+            return gallery.OrderBy(i => i.DisplayOrder).Select(i => i.ToDto());
         }
     }
 }

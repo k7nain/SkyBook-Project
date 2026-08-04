@@ -15,17 +15,20 @@ namespace FlyzenApi.Application.Implementations.Services
         private readonly INotificationRepository _notificationRepository;
         private readonly IEmailService _emailService;
         private readonly ITranslationService _translationService;
+        private readonly INotificationPusher _notificationPusher;
         private readonly ILogger<NotificationService> _logger;
 
         public NotificationService(
             INotificationRepository notificationRepository,
             IEmailService emailService,
             ITranslationService translationService,
+            INotificationPusher notificationPusher,
             ILogger<NotificationService> logger)
         {
             _notificationRepository = notificationRepository;
             _emailService = emailService;
             _translationService = translationService;
+            _notificationPusher = notificationPusher;
             _logger = logger;
         }
 
@@ -69,7 +72,7 @@ namespace FlyzenApi.Application.Implementations.Services
         {
             var language = recipient.LanguagePreference;
 
-            await _notificationRepository.AddAsync(new Notification
+            var notification = new Notification
             {
                 UserId = recipient.Id,
                 Title = _translationService.Translate(language, titleKey, args),
@@ -79,7 +82,24 @@ namespace FlyzenApi.Application.Implementations.Services
                 ParamsJson = args is null ? null : JsonSerializer.Serialize(args),
                 Type = type,
                 BookingId = bookingId,
-            });
+            };
+            await _notificationRepository.AddAsync(notification);
+
+            // Real-time push, scoped for now to the one flight-change-triggered type
+            // that exists (admin price updates - see AdminService.UpdateFlightPriceAsync).
+            // Every other notification type (booking confirmations, trip reminders,
+            // departure/arrival) stays poll/refresh-based until asked to expand this.
+            if (type == NotificationType.PriceChange)
+            {
+                try
+                {
+                    await _notificationPusher.PushAsync(recipient.Id, notification.ToDto());
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to push real-time notification to user {UserId}.", recipient.Id);
+                }
+            }
 
             if (emailSubject is null || emailHtmlBody is null)
                 return;

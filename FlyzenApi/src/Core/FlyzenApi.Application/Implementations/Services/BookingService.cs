@@ -54,6 +54,12 @@ namespace FlyzenApi.Application.Implementations.Services
                 var flight = await _flightRepository.GetByIdAsync(request.FlightId)
                     ?? throw new NotFoundException("Flight not found.");
 
+                // Re-validate the same cutoff enforced at search time (FlightRepository.SearchAsync) -
+                // a flight loaded before crossing the cutoff must not become bookable just because
+                // the client already had it open.
+                if (flight.DepartureTime <= DateTime.UtcNow.AddHours(Flight.BookingCutoffHours))
+                    throw new BadRequestException("Bu uçuş üçün bron etmə vaxtı keçib.");
+
                 _ = await _userRepository.GetByIdAsync(userId)
                     ?? throw new NotFoundException("User not found.");
 

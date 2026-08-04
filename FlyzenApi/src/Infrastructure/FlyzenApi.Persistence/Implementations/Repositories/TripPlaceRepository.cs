@@ -26,7 +26,11 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
         public async Task<IEnumerable<TripPlaceImage>> GetGalleryByPlaceIdAsync(Guid placeId) =>
             await _context.TripPlaceImages
                 .Where(i => i.PlaceId == placeId)
+                .OrderBy(i => i.DisplayOrder)
                 .ToListAsync();
+
+        public Task<TripPlaceImage?> GetGalleryImageByIdAsync(Guid imageId) =>
+            _context.TripPlaceImages.FirstOrDefaultAsync(i => i.Id == imageId);
 
         public async Task AddAsync(TripPlace place)
         {
@@ -51,5 +55,13 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
             await _context.TripPlaceImages.AddAsync(image);
             await _context.SaveChangesAsync();
         }
+
+        public async Task DeleteGalleryImageAsync(TripPlaceImage image)
+        {
+            _context.TripPlaceImages.Remove(image);
+            await _context.SaveChangesAsync();
+        }
+
+        public Task SaveChangesAsync() => _context.SaveChangesAsync();
     }
 }

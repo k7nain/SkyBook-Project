@@ -7,6 +7,11 @@ namespace FlyzenApi.Domain.Entities
 {
     public class Flight : BaseEntity
     {
+        // Standard airline booking cutoff: a flight stops being searchable/
+        // bookable once we're within this many hours of its departure, not
+        // just once it has actually departed.
+        public const int BookingCutoffHours = 1;
+
         public string FlightNumber { get; set; } = string.Empty;
 
         public Guid? AirlineId { get; set; }

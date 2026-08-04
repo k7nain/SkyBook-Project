@@ -8,5 +8,7 @@ namespace FlyzenApi.Domain.Entities
         public TripPlace Place { get; set; } = null!;
 
         public string ImageUrl { get; set; } = string.Empty;
+
+        public int DisplayOrder { get; set; }
     }
 }

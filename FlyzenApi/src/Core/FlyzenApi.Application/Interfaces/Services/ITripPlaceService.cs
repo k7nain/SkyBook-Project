@@ -11,5 +11,7 @@ namespace FlyzenApi.Application.Interfaces.Services
         Task<TripPlaceDto> UpdateAsync(Guid id, UpdateTripPlaceRequest request);
         Task DeleteAsync(Guid id);
         Task<TripPlaceImageDto> AddImageAsync(Guid placeId, AddTripPlaceImageRequest request);
+        Task DeleteImageAsync(Guid placeId, Guid imageId);
+        Task<IEnumerable<TripPlaceImageDto>> ReorderGalleryAsync(Guid placeId, List<Guid> imageIds);
     }
 }

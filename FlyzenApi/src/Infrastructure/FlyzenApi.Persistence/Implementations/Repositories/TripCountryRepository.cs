@@ -19,6 +19,13 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
                 .OrderBy(c => c.NameEn)
                 .ToListAsync();
 
+        public async Task<IEnumerable<TripCountry>> GetAllWithCitiesAndPlacesAsync() =>
+            await _context.TripCountries
+                .Include(c => c.Cities)
+                    .ThenInclude(ci => ci.Places)
+                .OrderBy(c => c.NameEn)
+                .ToListAsync();
+
         public Task<TripCountry?> GetByIdAsync(Guid id) =>
             _context.TripCountries.FirstOrDefaultAsync(c => c.Id == id);
 

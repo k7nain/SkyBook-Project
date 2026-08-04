@@ -1,5 +1,6 @@
 using FlyzenApi.API.Common;
 using FlyzenApi.Application.DTOs;
+using FlyzenApi.Application.Exceptions;
 using FlyzenApi.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,6 +20,11 @@ namespace FlyzenApi.API.Controllers
         private readonly ITripPlaceService _tripPlaceService;
         private readonly IPromoCodeService _promoCodeService;
         private readonly IContentTranslationService _contentTranslationService;
+        private readonly IFileStorageService _fileStorageService;
+        private readonly ISeedImageMigrationService _seedImageMigrationService;
+        private readonly SeedImageMigrationStatus _seedImageMigrationStatus;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly ILogger<AdminController> _logger;
 
         public AdminController(
             IAdminService adminService,
@@ -28,7 +34,12 @@ namespace FlyzenApi.API.Controllers
             ITripCityService tripCityService,
             ITripPlaceService tripPlaceService,
             IPromoCodeService promoCodeService,
-            IContentTranslationService contentTranslationService)
+            IContentTranslationService contentTranslationService,
+            IFileStorageService fileStorageService,
+            ISeedImageMigrationService seedImageMigrationService,
+            SeedImageMigrationStatus seedImageMigrationStatus,
+            IServiceScopeFactory serviceScopeFactory,
+            ILogger<AdminController> logger)
         {
             _adminService = adminService;
             _airlineService = airlineService;
@@ -38,6 +49,11 @@ namespace FlyzenApi.API.Controllers
             _tripPlaceService = tripPlaceService;
             _promoCodeService = promoCodeService;
             _contentTranslationService = contentTranslationService;
+            _fileStorageService = fileStorageService;
+            _seedImageMigrationService = seedImageMigrationService;
+            _seedImageMigrationStatus = seedImageMigrationStatus;
+            _serviceScopeFactory = serviceScopeFactory;
+            _logger = logger;
         }
 
         [HttpGet("bookings")]
@@ -152,6 +168,46 @@ namespace FlyzenApi.API.Controllers
         [HttpPost("trip-places/{id:guid}/gallery")]
         public async Task<ActionResult<TripPlaceImageDto>> AddTripPlaceImage(Guid id, AddTripPlaceImageRequest request) =>
             Ok(await _tripPlaceService.AddImageAsync(id, request));
+
+        [HttpDelete("trip-places/{placeId:guid}/gallery/{imageId:guid}")]
+        public async Task<IActionResult> DeleteTripPlaceImage(Guid placeId, Guid imageId)
+        {
+            await _tripPlaceService.DeleteImageAsync(placeId, imageId);
+            return NoContent();
+        }
+
+        [HttpPut("trip-places/{id:guid}/gallery/reorder")]
+        public async Task<ActionResult<IEnumerable<TripPlaceImageDto>>> ReorderTripPlaceGallery(Guid id, ReorderTripPlaceGalleryRequest request) =>
+            Ok(await _tripPlaceService.ReorderGalleryAsync(id, request.ImageIds));
+
+        /// <summary>
+        /// Uploads a single image (jpg/png/webp, max 10MB) to local disk storage
+        /// and returns its URL for use as a Country cover image, City image, or
+        /// a Trip Place gallery entry. Validated server-side regardless of any
+        /// client-side checks already performed.
+        /// </summary>
+        [HttpPost("upload-image")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(11 * 1024 * 1024)]
+        public async Task<ActionResult<UploadImageResponse>> UploadImage(IFormFile file, CancellationToken cancellationToken)
+        {
+            if (file is null)
+                throw new BadRequestException("No file was uploaded.");
+
+            await using var stream = file.OpenReadStream();
+            var url = await _fileStorageService.SaveImageAsync(stream, file.FileName, file.ContentType, file.Length, cancellationToken);
+            return Ok(new UploadImageResponse { Url = url });
+        }
+
+        /// <summary>
+        /// One-time migration of seeded Dream Trip Country/City/Place images
+        /// from external URLs to local file storage. Idempotent - safe to
+        /// call again after a partial failure, already-migrated records are
+        /// skipped. Can take a couple of minutes for the full seed set.
+        /// </summary>
+        [HttpPost("migrate-seed-images")]
+        public async Task<ActionResult<SeedImageMigrationResult>> MigrateSeedImages(CancellationToken cancellationToken) =>
+            Ok(await _seedImageMigrationService.MigrateAsync(cancellationToken));
 
         [HttpPost("translate")]
         public async Task<ActionResult<ContentTranslateResponse>> Translate(ContentTranslateRequest request, CancellationToken cancellationToken)
