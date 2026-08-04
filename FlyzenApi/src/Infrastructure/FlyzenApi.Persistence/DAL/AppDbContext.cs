@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FlyzenApi.Persistence.DAL
 {
-    public class AppDbContext : DbContext
+    internal class AppDbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
