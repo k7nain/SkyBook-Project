@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: skybook-api
+    runtime: docker
+    dockerfilePath: ./SkyBook-Project/FlyzenApi/Presentation/FlyzenApi.API/Dockerfile
+    dockerContext: ./SkyBook-Project/FlyzenApi
+    branch: main
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        sync: false

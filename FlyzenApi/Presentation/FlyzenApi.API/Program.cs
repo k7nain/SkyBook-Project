@@ -22,6 +22,7 @@ using FlyzenApi.Persistence.DAL;
 using FlyzenApi.Persistence.Implementations;
 using FlyzenApi.Persistence.Implementations.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -50,7 +51,7 @@ namespace FlyzenApi.API
             builder.Services.Configure<ContactOptions>(builder.Configuration.GetSection(ContactOptions.SectionName));
 
             builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+                options.UseNpgsql(NormalizePostgresConnectionString(builder.Configuration.GetConnectionString("DefaultConnection"))));
 
             // Repositories
             builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -264,6 +265,25 @@ namespace FlyzenApi.API
                 await DbInitializer.SeedAsync(context);
             }
 
+            // Must run before anything that inspects scheme/client IP (HTTPS
+            // redirection below, IP-partitioned rate limit policies) - behind
+            // Render's (or any PaaS) reverse proxy, Kestrel only ever sees a
+            // plain-HTTP connection from the proxy's own address; without this,
+            // UseHttpsRedirection would 307-loop every request (proxy terminates
+            // TLS -> forwards HTTP -> app redirects to HTTPS -> proxy terminates
+            // TLS again -> ...) and rate limiting would key off the proxy's IP
+            // instead of the real client's. KnownNetworks/KnownProxies are
+            // cleared because the proxy's IP isn't fixed/known in advance on a
+            // managed platform - safe here since the container is never
+            // reachable except through that proxy.
+            var forwardedHeadersOptions = new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+            };
+            forwardedHeadersOptions.KnownNetworks.Clear();
+            forwardedHeadersOptions.KnownProxies.Clear();
+            app.UseForwardedHeaders(forwardedHeadersOptions);
+
             app.UseMiddleware<ExceptionHandlingMiddleware>();
 
             // Configure the HTTP request pipeline.
@@ -296,10 +316,44 @@ namespace FlyzenApi.API
 
             app.MapGet("/reset-password", () => Results.Content(ResetPasswordPage.Html, "text/html"));
 
+            // Cheap, dependency-free 200 for platform health checks (e.g. Render's
+            // healthCheckPath) - deliberately doesn't touch the database, so a slow/
+            // recovering DB connection doesn't get the whole service marked unhealthy
+            // and cycled.
+            app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+
             app.MapControllers();
             app.MapHub<NotificationHub>("/hubs/notifications");
 
             app.Run();
+        }
+
+        // Render (like most managed Postgres providers) hands out connection info as
+        // a postgres://user:pass@host:port/db URI, not Npgsql's native keyword=value
+        // format that appsettings.json's local-dev value uses - normalize here so the
+        // same ConnectionStrings:DefaultConnection config key works unchanged in both
+        // environments instead of requiring anyone to hand-convert it in the Render
+        // dashboard. SSL Mode=Require matches what Render's managed Postgres expects
+        // (including over its internal/private network URL).
+        private static string NormalizePostgresConnectionString(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return raw ?? string.Empty;
+
+            if (!raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) &&
+                !raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+            {
+                return raw;
+            }
+
+            var uri = new Uri(raw);
+            var userInfo = uri.UserInfo.Split(':', 2);
+            var username = Uri.UnescapeDataString(userInfo[0]);
+            var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+            var database = uri.AbsolutePath.TrimStart('/');
+            var port = uri.Port > 0 ? uri.Port : 5432;
+
+            return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
         }
     }
 }
