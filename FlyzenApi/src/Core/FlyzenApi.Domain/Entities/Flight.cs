@@ -28,6 +28,12 @@ namespace FlyzenApi.Domain.Entities
         public decimal BasePrice { get; set; }
         public string Currency { get; set; } = "AZN";
 
+        // Set manually by the admin per flight, like BasePrice - never
+        // computed by the system (no automatic price-based formula).
+        // Awarded flat (once per booking, not multiplied by passenger count)
+        // when a booking on this flight is created - see BookingService.
+        public int SkyPoints { get; set; } = 0;
+
         // Driven by FlightNotificationBackgroundService as departure/arrival
         // times are reached; not set by admins directly.
         public FlightStatus Status { get; set; } = FlightStatus.Scheduled;

@@ -67,4 +67,17 @@ namespace FlyzenApi.Domain.Enums
         Departed,
         Arrived
     }
+
+    // Earned: awarded at booking creation (this app has no payment gateway -
+    // booking creation already stands in for "paid", see BookingService).
+    // Redeemed: spent as a checkout discount.
+    // Reversed: an earlier Earned award clawed back because its booking was
+    // cancelled - kept distinct from Redeemed so the history never implies
+    // the user cashed points in for a discount they didn't actually take.
+    public enum SkyPointsTransactionType
+    {
+        Earned,
+        Redeemed,
+        Reversed
+    }
 }

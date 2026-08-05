@@ -22,6 +22,7 @@ namespace FlyzenApi.Application.Implementations.Services
         private readonly INotificationService _notificationService;
         private readonly ITranslationService _translationService;
         private readonly ICurrencyConversionService _currencyConversionService;
+        private readonly ISkyPointsRepository _skyPointsRepository;
 
         public AdminService(
             IBookingRepository bookingRepository,
@@ -33,7 +34,8 @@ namespace FlyzenApi.Application.Implementations.Services
             IAuthService authService,
             INotificationService notificationService,
             ITranslationService translationService,
-            ICurrencyConversionService currencyConversionService)
+            ICurrencyConversionService currencyConversionService,
+            ISkyPointsRepository skyPointsRepository)
         {
             _bookingRepository = bookingRepository;
             _userRepository = userRepository;
@@ -45,6 +47,7 @@ namespace FlyzenApi.Application.Implementations.Services
             _notificationService = notificationService;
             _translationService = translationService;
             _currencyConversionService = currencyConversionService;
+            _skyPointsRepository = skyPointsRepository;
         }
 
         public async Task<IEnumerable<AdminBookingDto>> GetAllBookingsAsync() =>
@@ -170,6 +173,7 @@ namespace FlyzenApi.Application.Implementations.Services
                 ArrivalTime = arrivalTimeUtc,
                 BasePrice = basePriceAzn,
                 Currency = ICurrencyConversionService.BaseCurrency,
+                SkyPoints = request.SkyPoints,
                 Seats = BuildSeatMap(),
             };
 
@@ -206,10 +210,13 @@ namespace FlyzenApi.Application.Implementations.Services
             var newBasePriceAzn = await _currencyConversionService.ConvertToBaseAsync(request.BasePrice, request.Currency);
 
             var oldPrice = flight.BasePrice;
-            if (oldPrice == newBasePriceAzn)
+            var skyPointsChanged = request.SkyPoints.HasValue && request.SkyPoints.Value != flight.SkyPoints;
+            if (oldPrice == newBasePriceAzn && !skyPointsChanged)
                 return flight.ToSummaryDto();
 
             flight.BasePrice = newBasePriceAzn;
+            if (request.SkyPoints.HasValue)
+                flight.SkyPoints = request.SkyPoints.Value;
             await _flightRepository.UpdateAsync(flight);
 
             // Only notify users who currently have this flight in an active (Pending)
@@ -262,6 +269,8 @@ namespace FlyzenApi.Application.Implementations.Services
             var totalUsers = await _userRepository.CountAsync(isEmailConfirmed: true);
             var totalFlights = await _flightRepository.CountAsync();
             var totalBookings = await _bookingRepository.CountAsync();
+            var totalSkyPointsIssued = await _skyPointsRepository.GetTotalAmountByTypeAsync(SkyPointsTransactionType.Earned);
+            var totalSkyPointsRedeemed = await _skyPointsRepository.GetTotalAmountByTypeAsync(SkyPointsTransactionType.Redeemed);
 
             // Every booking is stored in a single currency today (AZN - see
             // CreateFlightAsync's ConvertToBaseAsync call), so summing the
@@ -281,6 +290,8 @@ namespace FlyzenApi.Application.Implementations.Services
                 CancelledBookings = statusCounts.GetValueOrDefault(BookingStatus.Cancelled, 0),
                 TotalUsers = totalUsers,
                 TotalFlights = totalFlights,
+                TotalSkyPointsIssued = totalSkyPointsIssued,
+                TotalSkyPointsRedeemed = totalSkyPointsRedeemed,
                 RevenueTrend = trend
                     .Select(p => new RevenueTrendPointDto { Period = $"{p.Year:D4}-{p.Month:D2}", Revenue = p.Revenue })
                     .ToList(),

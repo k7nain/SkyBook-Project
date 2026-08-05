@@ -22,6 +22,9 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
         public Task<City?> GetByIdAsync(Guid id) =>
             _context.Cities.FirstOrDefaultAsync(c => c.Id == id);
 
+        public Task<City?> GetByNameAsync(string name) =>
+            _context.Cities.FirstOrDefaultAsync(c => c.Name.ToLower() == name.ToLower());
+
         public async Task<IEnumerable<CityGalleryImage>> GetGalleryByCityIdAsync(Guid cityId) =>
             await _context.CityGalleryImages
                 .Where(g => g.CityId == cityId)

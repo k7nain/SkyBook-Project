@@ -23,6 +23,11 @@ namespace FlyzenApi.Application.DTOs
         public int TotalUsers { get; set; }
         public int TotalFlights { get; set; }
 
+        // Platform-wide Sky Points totals - issued (Earned, before any
+        // Reversed clawbacks) vs. actually spent as checkout discounts.
+        public long TotalSkyPointsIssued { get; set; }
+        public long TotalSkyPointsRedeemed { get; set; }
+
         public List<RevenueTrendPointDto> RevenueTrend { get; set; } = new();
     }
 

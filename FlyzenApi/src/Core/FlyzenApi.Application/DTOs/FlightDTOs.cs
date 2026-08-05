@@ -15,6 +15,7 @@ namespace FlyzenApi.Application.DTOs
         public decimal BasePrice { get; set; }
         public string Currency { get; set; } = "AZN";
         public int AvailableSeats { get; set; }
+        public int SkyPoints { get; set; }
     }
 
     public class SeatDto
@@ -60,6 +61,11 @@ namespace FlyzenApi.Application.DTOs
         public decimal BasePrice { get; set; }
 
         public string Currency { get; set; } = "AZN";
+
+        // Set manually by the admin, like BasePrice - never computed from price
+        // or anything else by the system. See Flight.SkyPoints.
+        [Range(0, int.MaxValue)]
+        public int SkyPoints { get; set; }
     }
 
     public class UpdateFlightPriceRequest
@@ -69,6 +75,12 @@ namespace FlyzenApi.Application.DTOs
 
         // Same convert-then-store-as-AZN contract as CreateFlightRequest.
         public string Currency { get; set; } = "AZN";
+
+        // Nullable despite the DTO's price-focused name/route - this is also
+        // the only "edit an existing flight" endpoint that exists, so it
+        // doubles as the Sky Points quick-edit. Null means "leave unchanged".
+        [Range(0, int.MaxValue)]
+        public int? SkyPoints { get; set; }
     }
 
     public class MealOptionDto

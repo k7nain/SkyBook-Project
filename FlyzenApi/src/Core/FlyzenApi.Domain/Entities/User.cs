@@ -37,6 +37,12 @@ namespace FlyzenApi.Domain.Entities
         public string? GoogleId { get; set; }
         public string? AppleId { get; set; }
 
+        // Denormalized running total (not summed from SkyPointsTransactions on
+        // every read) for fast display in the nav bar/profile - always kept in
+        // sync with a transaction row in the same SaveChanges, see
+        // BookingService's earn/reverse/redeem logic.
+        public int SkyPointsBalance { get; set; } = 0;
+
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     }
 }

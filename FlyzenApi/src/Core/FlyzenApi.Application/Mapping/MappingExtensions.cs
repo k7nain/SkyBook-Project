@@ -18,6 +18,16 @@ namespace FlyzenApi.Application.Mapping
             LanguagePreference = user.LanguagePreference,
             PreferredTimezone = user.PreferredTimezone,
             Role = user.Role,
+            SkyPointsBalance = user.SkyPointsBalance,
+        };
+
+        public static SkyPointsTransactionDto ToDto(this SkyPointsTransaction transaction) => new()
+        {
+            Id = transaction.Id,
+            Amount = transaction.Amount,
+            Type = transaction.Type,
+            RelatedBookingPnr = transaction.RelatedBooking?.PNR,
+            CreatedAt = transaction.CreatedAt,
         };
 
         public static NotificationDto ToDto(this Notification notification) => new()
@@ -133,6 +143,56 @@ namespace FlyzenApi.Application.Mapping
             DisplayOrder = image.DisplayOrder,
         };
 
+        // language is one of "az" | "en" | "ru", already normalized by the caller
+        // (WorldMapService.NormalizeLanguage) - falls back to the always-present
+        // Az field the same way DreamTripAiService falls back when a translation
+        // hasn't landed yet.
+        public static MapMarkerDto ToMarkerDto(this TripPlace place, string language) => new()
+        {
+            Id = place.Id,
+            DestinationName = ResolveLocalizedName(place.NameAz, place.NameEn, place.NameRu, language),
+            CountryCode = place.City.Country.FlagCode,
+            Latitude = place.Latitude ?? 0,
+            Longitude = place.Longitude ?? 0,
+            ThumbnailUrl = ResolveThumbnail(place),
+            ShortDescription = ResolveLocalizedText(place.DescriptionAz, place.DescriptionEn, place.DescriptionRu, language),
+        };
+
+        public static DestinationDetailDto ToDetailDto(this TripPlace place, string language) => new()
+        {
+            Id = place.Id,
+            DestinationName = ResolveLocalizedName(place.NameAz, place.NameEn, place.NameRu, language),
+            Description = ResolveLocalizedText(place.DescriptionAz, place.DescriptionEn, place.DescriptionRu, language),
+            Category = place.Category,
+            Latitude = place.Latitude ?? 0,
+            Longitude = place.Longitude ?? 0,
+            CountryCode = place.City.Country.FlagCode,
+            CountryName = ResolveLocalizedName(place.City.Country.NameAz, place.City.Country.NameEn, place.City.Country.NameRu, language),
+            CityName = ResolveLocalizedName(place.City.NameAz, place.City.NameEn, place.City.NameRu, language),
+            CityDescription = ResolveLocalizedText(place.City.ShortDescriptionAz, place.City.ShortDescriptionEn, place.City.ShortDescriptionRu, language),
+            ThumbnailUrl = ResolveThumbnail(place),
+            GalleryImageUrls = place.Images.OrderBy(i => i.DisplayOrder).Select(i => i.ImageUrl).ToList(),
+        };
+
+        private static string? ResolveThumbnail(TripPlace place) =>
+            place.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.ImageUrl
+                ?? place.City.Image
+                ?? place.City.Country.CoverImage;
+
+        private static string ResolveLocalizedName(string nameAz, string? nameEn, string? nameRu, string language) => language switch
+        {
+            "en" => nameEn ?? nameAz,
+            "ru" => nameRu ?? nameAz,
+            _ => nameAz,
+        };
+
+        private static string? ResolveLocalizedText(string? textAz, string? textEn, string? textRu, string language) => language switch
+        {
+            "en" => textEn ?? textAz,
+            "ru" => textRu ?? textAz,
+            _ => textAz,
+        };
+
         public static SeatDto ToDto(this SeatMap seat, decimal basePrice) => new()
         {
             Id = seat.Id,
@@ -155,6 +215,7 @@ namespace FlyzenApi.Application.Mapping
             BasePrice = flight.BasePrice,
             Currency = flight.Currency,
             AvailableSeats = flight.Seats.Count(s => s.IsAvailable),
+            SkyPoints = flight.SkyPoints,
         };
 
         public static FlightDetailDto ToDetailDto(this Flight flight) => new()
@@ -169,6 +230,7 @@ namespace FlyzenApi.Application.Mapping
             BasePrice = flight.BasePrice,
             Currency = flight.Currency,
             AvailableSeats = flight.Seats.Count(s => s.IsAvailable),
+            SkyPoints = flight.SkyPoints,
             Seats = flight.Seats.OrderBy(s => s.SeatNumber).Select(s => s.ToDto(flight.BasePrice)).ToList(),
         };
 

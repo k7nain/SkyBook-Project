@@ -32,6 +32,11 @@ namespace FlyzenApi.Application.DTOs
         public List<PassengerSelectionRequest> Passengers { get; set; } = new();
 
         public string? PromoCode { get; set; }
+
+        // Stacks with PromoCode (applied after it - see BookingService.CreateAsync).
+        // Preview-only client-side; re-validated and clamped from scratch here,
+        // same principle as PromoCode never being trusted from the client.
+        public int? SkyPointsToRedeem { get; set; }
     }
 
     public class BookingPassengerDto

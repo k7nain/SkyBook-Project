@@ -15,11 +15,14 @@ namespace FlyzenApi.API.Controllers
             _flightService = flightService;
         }
 
+        // fromCityId/departureDate omitted => "any origin" search (e.g. a World
+        // Map marker click, which has no from-city or date the user picked yet) -
+        // see FlightService.SearchAsync/FlightRepository.SearchAsync.
         [HttpGet("search")]
         public async Task<ActionResult<IEnumerable<FlightSummaryDto>>> Search(
-            [FromQuery] Guid fromCityId,
+            [FromQuery] Guid? fromCityId,
             [FromQuery] Guid toCityId,
-            [FromQuery] DateTime departureDate,
+            [FromQuery] DateTime? departureDate,
             [FromQuery] int passengers = 1) =>
             Ok(await _flightService.SearchAsync(fromCityId, toCityId, departureDate, passengers));
 

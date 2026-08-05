@@ -18,6 +18,7 @@ namespace FlyzenApi.Application.Implementations.Services
         private readonly IMealOptionRepository _mealOptionRepository;
         private readonly IBaggageOptionRepository _baggageOptionRepository;
         private readonly IPromoCodeRepository _promoCodeRepository;
+        private readonly ISkyPointsRepository _skyPointsRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IEmailService _emailService;
         private readonly INotificationService _notificationService;
@@ -30,6 +31,7 @@ namespace FlyzenApi.Application.Implementations.Services
             IMealOptionRepository mealOptionRepository,
             IBaggageOptionRepository baggageOptionRepository,
             IPromoCodeRepository promoCodeRepository,
+            ISkyPointsRepository skyPointsRepository,
             IUnitOfWork unitOfWork,
             IEmailService emailService,
             INotificationService notificationService,
@@ -41,6 +43,7 @@ namespace FlyzenApi.Application.Implementations.Services
             _mealOptionRepository = mealOptionRepository;
             _baggageOptionRepository = baggageOptionRepository;
             _promoCodeRepository = promoCodeRepository;
+            _skyPointsRepository = skyPointsRepository;
             _unitOfWork = unitOfWork;
             _emailService = emailService;
             _notificationService = notificationService;
@@ -60,7 +63,7 @@ namespace FlyzenApi.Application.Implementations.Services
                 if (flight.DepartureTime <= DateTime.UtcNow.AddHours(Flight.BookingCutoffHours))
                     throw new BadRequestException("Bu uçuş üçün bron etmə vaxtı keçib.");
 
-                _ = await _userRepository.GetByIdAsync(userId)
+                var user = await _userRepository.GetByIdAsync(userId)
                     ?? throw new NotFoundException("User not found.");
 
                 var seatIds = request.Passengers.Select(p => p.SeatId).ToList();
@@ -122,6 +125,23 @@ namespace FlyzenApi.Application.Implementations.Services
                     promoCode.UsedCount++;
                 }
 
+                // Stacks with the promo code above (applied to the post-promo
+                // remainder, not the original total - order matters: promo is a
+                // percentage, this is a fixed AZN amount). Like the promo code,
+                // the frontend's live slider preview is informational only -
+                // clamped from scratch here against both the user's real balance
+                // and the remaining total, so neither can go negative or below 0
+                // regardless of what the client requested.
+                var pointsToRedeem = 0;
+                if (request.SkyPointsToRedeem is > 0)
+                {
+                    var maxByBalance = user.SkyPointsBalance;
+                    var maxByTotal = (int)Math.Floor(total * 100m);
+                    pointsToRedeem = Math.Min(request.SkyPointsToRedeem.Value, Math.Min(maxByBalance, maxByTotal));
+                    if (pointsToRedeem > 0)
+                        total -= pointsToRedeem / 100m;
+                }
+
                 var bookingId = Guid.NewGuid();
                 foreach (var seatId in seatIds)
                     seatsById[seatId].BookingId = bookingId;
@@ -152,6 +172,36 @@ namespace FlyzenApi.Application.Implementations.Services
                 };
 
                 await _bookingRepository.AddAsync(booking);
+
+                // Earned flat per booking (not x passenger count), awarded at
+                // creation since this app has no payment gateway - booking
+                // creation already stands in for "paid" everywhere else (see
+                // the notification comment below). Must come after AddAsync:
+                // RelatedBookingId is a real FK to Bookings, so the booking row
+                // has to exist first.
+                if (flight.SkyPoints > 0)
+                {
+                    user.SkyPointsBalance += flight.SkyPoints;
+                    await _skyPointsRepository.AddTransactionAsync(new SkyPointsTransaction
+                    {
+                        UserId = userId,
+                        Amount = flight.SkyPoints,
+                        Type = SkyPointsTransactionType.Earned,
+                        RelatedBookingId = booking.Id,
+                    });
+                }
+
+                if (pointsToRedeem > 0)
+                {
+                    user.SkyPointsBalance -= pointsToRedeem;
+                    await _skyPointsRepository.AddTransactionAsync(new SkyPointsTransaction
+                    {
+                        UserId = userId,
+                        Amount = pointsToRedeem,
+                        Type = SkyPointsTransactionType.Redeemed,
+                        RelatedBookingId = booking.Id,
+                    });
+                }
 
                 return booking.Id;
             });
@@ -217,6 +267,30 @@ namespace FlyzenApi.Application.Implementations.Services
             }
 
             await _bookingRepository.UpdateAsync(booking);
+
+            // Claw back any Sky Points this booking earned - otherwise book-then-
+            // cancel would be a free way to farm points. Clamped at 0 rather than
+            // assumed-reversible: the user may have already redeemed some of that
+            // balance on a different booking in the meantime, so the Reversed
+            // transaction logs the amount actually removed, not the original
+            // Earned amount, to keep the history honest about what really happened.
+            var earnedAmount = await _skyPointsRepository.GetEarnedAmountForBookingAsync(booking.Id);
+            if (earnedAmount > 0)
+            {
+                var amountToReverse = Math.Min(earnedAmount, booking.User.SkyPointsBalance);
+                if (amountToReverse > 0)
+                {
+                    booking.User.SkyPointsBalance -= amountToReverse;
+                    await _skyPointsRepository.AddTransactionAsync(new SkyPointsTransaction
+                    {
+                        UserId = booking.UserId,
+                        Amount = amountToReverse,
+                        Type = SkyPointsTransactionType.Reversed,
+                        RelatedBookingId = booking.Id,
+                    });
+                }
+            }
+
             return booking.ToDto();
         }
 

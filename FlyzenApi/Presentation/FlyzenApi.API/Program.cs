@@ -69,6 +69,7 @@ namespace FlyzenApi.API
             builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
             builder.Services.AddScoped<IBookingReminderRepository, BookingReminderRepository>();
             builder.Services.AddScoped<IFlightNotificationLogRepository, FlightNotificationLogRepository>();
+            builder.Services.AddScoped<ISkyPointsRepository, SkyPointsRepository>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Application services
@@ -83,9 +84,14 @@ namespace FlyzenApi.API
             builder.Services.AddScoped<ITripCountryService, TripCountryService>();
             builder.Services.AddScoped<ITripCityService, TripCityService>();
             builder.Services.AddScoped<ITripPlaceService, TripPlaceService>();
+            builder.Services.AddScoped<IWorldMapService, WorldMapService>();
             builder.Services.AddScoped<IPromoCodeService, PromoCodeService>();
             builder.Services.AddScoped<INotificationService, NotificationService>();
+            builder.Services.AddScoped<ISkyPointsService, SkyPointsService>();
             builder.Services.AddScoped<INotificationPusher, SignalRNotificationPusher>();
+            // Singleton (not Scoped): caches across requests so the About page
+            // doesn't re-run these counts on every load (see PublicStatsService).
+            builder.Services.AddSingleton<IPublicStatsService, PublicStatsService>();
 
             // Infrastructure
             builder.Services.AddScoped<ITokenService, JwtTokenService>();
@@ -150,6 +156,23 @@ namespace FlyzenApi.API
                         {
                             PermitLimit = 10,
                             Window = TimeSpan.FromMinutes(30),
+                            QueueLimit = 0,
+                        }));
+
+                // World map markers is public (anonymous pan/zoom allowed) and not
+                // metered like the AI endpoints, but a fast-panning/zooming client can
+                // still fire a query per viewport change - cap per-IP (falling back to
+                // per-user when authenticated) generously enough for normal browsing
+                // while still bounding worst-case load; the client also debounces on
+                // its end (see F3 web/mobile) so this is a backstop, not the primary throttle.
+                options.AddPolicy("world-map-markers", httpContext =>
+                    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.User?.FindFirstValue(ClaimTypes.NameIdentifier)
+                            ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 60,
+                            Window = TimeSpan.FromMinutes(1),
                             QueueLimit = 0,
                         }));
 

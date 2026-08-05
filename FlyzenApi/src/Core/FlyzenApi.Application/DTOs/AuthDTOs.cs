@@ -141,5 +141,6 @@ namespace FlyzenApi.Application.DTOs
         public string LanguagePreference { get; set; } = "en";
         public string? PreferredTimezone { get; set; }
         public UserRole Role { get; set; }
+        public int SkyPointsBalance { get; set; }
     }
 }

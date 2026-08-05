@@ -57,6 +57,7 @@ namespace FlyzenApi.Persistence.DAL
         public DbSet<Notification> Notifications => Set<Notification>();
         public DbSet<BookingReminder> BookingReminders => Set<BookingReminder>();
         public DbSet<FlightNotificationLog> FlightNotificationLogs => Set<FlightNotificationLog>();
+        public DbSet<SkyPointsTransaction> SkyPointsTransactions => Set<SkyPointsTransaction>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -73,6 +74,7 @@ namespace FlyzenApi.Persistence.DAL
                 b.HasIndex(u => u.AppleId).IsUnique().HasFilter("\"AppleId\" IS NOT NULL");
                 b.HasIndex(u => u.PasswordResetTokenHash);
                 b.Property(u => u.PreferredTimezone).HasMaxLength(64);
+                b.Property(u => u.SkyPointsBalance).HasDefaultValue(0);
             });
 
             modelBuilder.Entity<City>(b =>
@@ -110,6 +112,7 @@ namespace FlyzenApi.Persistence.DAL
                 b.Property(f => f.FlightNumber).IsRequired().HasMaxLength(20);
                 b.Property(f => f.BasePrice).HasPrecision(18, 2);
                 b.Property(f => f.Currency).IsRequired().HasMaxLength(3).HasDefaultValue("AZN");
+                b.Property(f => f.SkyPoints).HasDefaultValue(0);
 
                 b.HasMany(f => f.Seats)
                     .WithOne(s => s.Flight)
@@ -284,6 +287,25 @@ namespace FlyzenApi.Persistence.DAL
                 b.HasOne(n => n.Booking)
                     .WithMany()
                     .HasForeignKey(n => n.BookingId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<SkyPointsTransaction>(b =>
+            {
+                b.HasIndex(t => t.UserId);
+
+                b.HasOne(t => t.User)
+                    .WithMany()
+                    .HasForeignKey(t => t.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // SetNull (not Restrict/Cascade): a transaction row is a
+                // permanent history/audit entry - it must survive even if the
+                // related booking is later hard-deleted (Booking.IsDeleted is
+                // normally a soft-delete, but this keeps the ledger safe either way).
+                b.HasOne(t => t.RelatedBooking)
+                    .WithMany()
+                    .HasForeignKey(t => t.RelatedBookingId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
 
