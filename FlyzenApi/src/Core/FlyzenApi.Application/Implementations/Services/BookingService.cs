@@ -63,6 +63,13 @@ namespace FlyzenApi.Application.Implementations.Services
                 if (flight.DepartureTime <= DateTime.UtcNow.AddHours(Flight.BookingCutoffHours))
                     throw new BadRequestException("Bu uçuş üçün bron etmə vaxtı keçib.");
 
+                // Same re-validation reasoning as the cutoff check above - a flight loaded
+                // before an admin cancelled it must not become bookable just because the
+                // client already had it open (SearchAsync excludes Cancelled flights, but
+                // that's a stale-client-side-cache guard, not the source of truth).
+                if (flight.OperationalStatus == FlightOperationalStatus.Cancelled)
+                    throw new BadRequestException("Bu uçuş ləğv edilib.");
+
                 var user = await _userRepository.GetByIdAsync(userId)
                     ?? throw new NotFoundException("User not found.");
 
@@ -173,19 +180,22 @@ namespace FlyzenApi.Application.Implementations.Services
 
                 await _bookingRepository.AddAsync(booking);
 
-                // Earned flat per booking (not x passenger count), awarded at
-                // creation since this app has no payment gateway - booking
-                // creation already stands in for "paid" everywhere else (see
-                // the notification comment below). Must come after AddAsync:
-                // RelatedBookingId is a real FK to Bookings, so the booking row
-                // has to exist first.
-                if (flight.SkyPoints > 0)
+                // Earned on the amount actually paid for this booking - `total` at
+                // this point already reflects the promo code discount and any Sky
+                // Points redemption above, so this is the real value received, not
+                // the pre-discount price. Awarded at creation since this app has no
+                // payment gateway - booking creation already stands in for "paid"
+                // everywhere else (see the notification comment below). Must come
+                // after AddAsync: RelatedBookingId is a real FK to Bookings, so the
+                // booking row has to exist first.
+                var skyPointsEarned = (int)Math.Round(total * 10m, MidpointRounding.AwayFromZero);
+                if (skyPointsEarned > 0)
                 {
-                    user.SkyPointsBalance += flight.SkyPoints;
+                    user.SkyPointsBalance += skyPointsEarned;
                     await _skyPointsRepository.AddTransactionAsync(new SkyPointsTransaction
                     {
                         UserId = userId,
-                        Amount = flight.SkyPoints,
+                        Amount = skyPointsEarned,
                         Type = SkyPointsTransactionType.Earned,
                         RelatedBookingId = booking.Id,
                     });
@@ -245,6 +255,132 @@ namespace FlyzenApi.Application.Implementations.Services
             if (booking is null || booking.UserId != userId)
                 return null;
             return booking.ToDto();
+        }
+
+        public async Task<CheckInStatusDto> GetCheckInStatusAsync(Guid id, Guid userId)
+        {
+            var booking = await _bookingRepository.GetByIdAsync(id);
+            if (booking is null || booking.UserId != userId)
+                throw new NotFoundException("Booking not found.");
+
+            return BuildCheckInStatus(booking);
+        }
+
+        public async Task<CheckInStatusDto> CheckInAsync(Guid id, Guid userId)
+        {
+            var bookingId = await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                var booking = await _bookingRepository.GetByIdAsync(id);
+                if (booking is null || booking.UserId != userId)
+                    throw new NotFoundException("Booking not found.");
+
+                var status = BuildCheckInStatus(booking);
+                switch (status.Availability)
+                {
+                    case CheckInAvailability.AlreadyCheckedIn:
+                        throw new BadRequestException("You have already checked in for this booking.");
+                    case CheckInAvailability.NotEligible:
+                        throw new BadRequestException(booking.Status == BookingStatus.Cancelled
+                            ? "This booking cannot be checked in (it has been cancelled)."
+                            : "This booking cannot be checked in until it is confirmed.");
+                    case CheckInAvailability.NotYetOpen:
+                        throw new BadRequestException("Check-in is not open yet for this flight.");
+                    case CheckInAvailability.Closed:
+                        throw new BadRequestException("Check-in has closed for this flight.");
+                }
+
+                booking.IsCheckedIn = true;
+                booking.CheckedInAt = DateTime.UtcNow;
+                booking.BoardingPassCode = GenerateBoardingPassCode();
+                await _bookingRepository.UpdateAsync(booking);
+                return booking.Id;
+            });
+
+            var updated = await _bookingRepository.GetByIdAsync(bookingId)
+                ?? throw new NotFoundException("Booking not found after check-in.");
+
+            var route = $"{updated.Flight.DepartureCity.Name} -> {updated.Flight.ArrivalCity.Name}";
+            await _notificationService.CreateAsync(
+                updated.User,
+                "notifications.checkInCompleted.title",
+                "notifications.checkInCompleted.body",
+                new Dictionary<string, string> { ["route"] = route },
+                NotificationType.CheckInCompleted,
+                bookingId: updated.Id);
+
+            return BuildCheckInStatus(updated);
+        }
+
+        public async Task<List<BoardingPassDto>> GetBoardingPassAsync(Guid id, Guid userId)
+        {
+            var booking = await _bookingRepository.GetByIdAsync(id);
+            if (booking is null || booking.UserId != userId)
+                throw new NotFoundException("Booking not found.");
+
+            if (!booking.IsCheckedIn || booking.BoardingPassCode is null)
+                throw new BadRequestException("This booking has not been checked in yet.");
+
+            var flight = booking.Flight;
+            return booking.Passengers.Select(p => new BoardingPassDto
+            {
+                BookingId = booking.Id,
+                PNR = booking.PNR,
+                PassengerName = $"{p.FirstName} {p.LastName}",
+                FlightNumber = flight.FlightNumber,
+                DepartureCityName = flight.DepartureCity.Name,
+                DepartureAirportCode = flight.DepartureCity.AirportCode,
+                ArrivalCityName = flight.ArrivalCity.Name,
+                ArrivalAirportCode = flight.ArrivalCity.AirportCode,
+                DepartureTimeUtc = flight.DepartureTime,
+                Gate = flight.GateNumber,
+                SeatNumber = p.Seat?.SeatNumber ?? "-",
+                SeatClass = p.Seat?.Class.ToString() ?? "-",
+                BoardingPassCode = booking.BoardingPassCode,
+                // Deliberately compact and non-sensitive - just enough to look
+                // up and verify the booking, no passenger/payment data encoded.
+                QrPayload = $"{booking.Id}|{booking.BoardingPassCode}",
+            }).ToList();
+        }
+
+        // Priority order matters: AlreadyCheckedIn always wins (even if the
+        // flight/booking state changed afterward - once checked in, that fact
+        // doesn't un-happen), then NotEligible (Pending/Cancelled bookings were
+        // never checkable, regardless of timing), then the time window itself.
+        private static CheckInStatusDto BuildCheckInStatus(Booking booking)
+        {
+            var flight = booking.Flight;
+            var opensAtUtc = flight.DepartureTime.AddHours(-Flight.CheckInOpensHoursBeforeDeparture);
+            var closesAtUtc = flight.DepartureTime.AddHours(-Flight.BookingCutoffHours);
+            var nowUtc = DateTime.UtcNow;
+
+            CheckInAvailability availability;
+            if (booking.IsCheckedIn)
+                availability = CheckInAvailability.AlreadyCheckedIn;
+            else if (booking.Status != BookingStatus.Confirmed)
+                // Pending (not yet admin-confirmed) and Cancelled are both
+                // ineligible - only a Confirmed booking can check in.
+                availability = CheckInAvailability.NotEligible;
+            else if (nowUtc < opensAtUtc)
+                availability = CheckInAvailability.NotYetOpen;
+            else if (nowUtc >= closesAtUtc || flight.Status != FlightStatus.Scheduled)
+                availability = CheckInAvailability.Closed;
+            else
+                availability = CheckInAvailability.Open;
+
+            return new CheckInStatusDto
+            {
+                Availability = availability,
+                OpensAtUtc = opensAtUtc,
+                ClosesAtUtc = closesAtUtc,
+                CheckedInAt = booking.CheckedInAt,
+            };
+        }
+
+        private static string GenerateBoardingPassCode()
+        {
+            const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            var random = Random.Shared;
+            return new string(Enumerable.Range(0, 10).Select(_ => chars[random.Next(chars.Length)]).ToArray());
         }
 
         public async Task<BookingDto> CancelAsync(Guid id, Guid userId)

@@ -69,6 +69,44 @@ namespace FlyzenApi.Application.DTOs
         public List<BookingPassengerDto> Passengers { get; set; } = new();
         public TicketDto? Ticket { get; set; }
         public DateTime CreatedAt { get; set; }
+        public bool IsCheckedIn { get; set; }
+        public DateTime? CheckedInAt { get; set; }
+    }
+
+    public class CheckInStatusDto
+    {
+        public CheckInAvailability Availability { get; set; }
+
+        // Always populated regardless of Availability, so the client can show
+        // "opens at X" before the window and "was open until X" after it closes,
+        // not just a bare status enum.
+        public DateTime OpensAtUtc { get; set; }
+        public DateTime ClosesAtUtc { get; set; }
+        public DateTime? CheckedInAt { get; set; }
+    }
+
+    public class BoardingPassDto
+    {
+        public Guid BookingId { get; set; }
+        public string PNR { get; set; } = string.Empty;
+        public string PassengerName { get; set; } = string.Empty;
+        public string FlightNumber { get; set; } = string.Empty;
+        public string DepartureCityName { get; set; } = string.Empty;
+        public string DepartureAirportCode { get; set; } = string.Empty;
+        public string ArrivalCityName { get; set; } = string.Empty;
+        public string ArrivalAirportCode { get; set; } = string.Empty;
+        // UTC - the client renders it in the departure city's local time using
+        // Flight's own DepartureCity.TimeZoneId, same convention as every other
+        // departure-time display in this app (see services/mappers.js).
+        public DateTime DepartureTimeUtc { get; set; }
+        public string? Gate { get; set; }
+        public string SeatNumber { get; set; } = string.Empty;
+        public string SeatClass { get; set; } = string.Empty;
+
+        public string BoardingPassCode { get; set; } = string.Empty;
+        // What the QR code should actually encode - decided server-side so the
+        // client never has to know or reconstruct the payload format itself.
+        public string QrPayload { get; set; } = string.Empty;
     }
 
     public class AdminBookingDto : BookingDto

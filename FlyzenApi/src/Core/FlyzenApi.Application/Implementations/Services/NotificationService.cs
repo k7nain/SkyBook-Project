@@ -12,6 +12,17 @@ namespace FlyzenApi.Application.Implementations.Services
 {
     public class NotificationService : INotificationService
     {
+        private static readonly HashSet<NotificationType> RealTimePushTypes = new()
+        {
+            NotificationType.PriceChange,
+            NotificationType.CheckInOpen,
+            NotificationType.GateChanged,
+            NotificationType.FlightDelayed,
+            NotificationType.BoardingReminder,
+            NotificationType.CheckInCompleted,
+            NotificationType.FlightCancelled,
+        };
+
         private readonly INotificationRepository _notificationRepository;
         private readonly IEmailService _emailService;
         private readonly ITranslationService _translationService;
@@ -85,11 +96,13 @@ namespace FlyzenApi.Application.Implementations.Services
             };
             await _notificationRepository.AddAsync(notification);
 
-            // Real-time push, scoped for now to the one flight-change-triggered type
-            // that exists (admin price updates - see AdminService.UpdateFlightPriceAsync).
-            // Every other notification type (booking confirmations, trip reminders,
-            // departure/arrival) stays poll/refresh-based until asked to expand this.
-            if (type == NotificationType.PriceChange)
+            // Real-time push: time-sensitive, flight-change-triggered types only
+            // (price updates, plus the newer check-in/gate/delay/boarding set -
+            // see AdminService.UpdateFlightPriceAsync/UpdateFlightOperationalStatusAsync
+            // and FlightNotificationBackgroundService). Booking confirmations and
+            // trip reminders aren't time-critical the same way, so they stay
+            // poll/refresh-based.
+            if (RealTimePushTypes.Contains(type))
             {
                 try
                 {

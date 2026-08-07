@@ -1,5 +1,6 @@
 using FlyzenApi.Domain.Entities;
 using FlyzenApi.Domain.Entities.Common;
+using FlyzenApi.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace FlyzenApi.Persistence.DAL
@@ -58,6 +59,11 @@ namespace FlyzenApi.Persistence.DAL
         public DbSet<BookingReminder> BookingReminders => Set<BookingReminder>();
         public DbSet<FlightNotificationLog> FlightNotificationLogs => Set<FlightNotificationLog>();
         public DbSet<SkyPointsTransaction> SkyPointsTransactions => Set<SkyPointsTransaction>();
+        public DbSet<TravelJournal> TravelJournals => Set<TravelJournal>();
+        public DbSet<TravelJournalImage> TravelJournalImages => Set<TravelJournalImage>();
+        public DbSet<SearchLog> SearchLogs => Set<SearchLog>();
+        public DbSet<UserRecommendationCache> UserRecommendationCaches => Set<UserRecommendationCache>();
+        public DbSet<PriceProposal> PriceProposals => Set<PriceProposal>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -112,7 +118,8 @@ namespace FlyzenApi.Persistence.DAL
                 b.Property(f => f.FlightNumber).IsRequired().HasMaxLength(20);
                 b.Property(f => f.BasePrice).HasPrecision(18, 2);
                 b.Property(f => f.Currency).IsRequired().HasMaxLength(3).HasDefaultValue("AZN");
-                b.Property(f => f.SkyPoints).HasDefaultValue(0);
+                b.Property(f => f.GateNumber).HasMaxLength(10);
+                b.Property(f => f.OperationalStatus).HasDefaultValue(FlightOperationalStatus.Normal);
 
                 b.HasMany(f => f.Seats)
                     .WithOne(s => s.Flight)
@@ -168,7 +175,14 @@ namespace FlyzenApi.Persistence.DAL
                 b.Property(bk => bk.TotalPrice).HasPrecision(18, 2);
                 b.Property(bk => bk.Currency).IsRequired().HasMaxLength(3).HasDefaultValue("AZN");
                 b.Property(bk => bk.IsDeleted).HasDefaultValue(false);
+                b.Property(bk => bk.IsCheckedIn).HasDefaultValue(false);
+                b.Property(bk => bk.BoardingPassCode).HasMaxLength(20);
                 b.HasIndex(bk => bk.PNR).IsUnique();
+                // Partial (most bookings never check in, so most rows are null -
+                // a plain unique index would still work on Postgres since it
+                // already treats NULL as distinct, but the filter makes that
+                // "only real codes are unique" intent explicit).
+                b.HasIndex(bk => bk.BoardingPassCode).IsUnique().HasFilter("\"BoardingPassCode\" IS NOT NULL");
 
                 b.HasOne(bk => bk.User)
                     .WithMany(u => u.Bookings)
@@ -327,6 +341,108 @@ namespace FlyzenApi.Persistence.DAL
                     .WithMany()
                     .HasForeignKey(l => l.FlightId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<TravelJournal>(b =>
+            {
+                b.Property(j => j.Title).IsRequired().HasMaxLength(150);
+                b.Property(j => j.Body).IsRequired().HasMaxLength(3000);
+                b.Property(j => j.IsPublished).HasDefaultValue(true);
+                b.HasIndex(j => j.DestinationCityId);
+
+                b.HasOne(j => j.User)
+                    .WithMany()
+                    .HasForeignKey(j => j.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Cascade (not Restrict): a journal only exists to describe one
+                // specific booking's trip - if that booking is ever hard-deleted
+                // (account deletion), the journal has nothing left to be "verified"
+                // against and should go with it.
+                b.HasOne(j => j.Booking)
+                    .WithMany()
+                    .HasForeignKey(j => j.BookingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(j => j.DestinationCity)
+                    .WithMany()
+                    .HasForeignKey(j => j.DestinationCityId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasMany(j => j.Images)
+                    .WithOne(i => i.Journal)
+                    .HasForeignKey(i => i.JournalId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<TravelJournalImage>(b =>
+            {
+                b.Property(i => i.ImageUrl).IsRequired();
+            });
+
+            modelBuilder.Entity<SearchLog>(b =>
+            {
+                b.HasIndex(l => new { l.UserId, l.CreatedAt });
+
+                b.HasOne(l => l.User)
+                    .WithMany()
+                    .HasForeignKey(l => l.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(l => l.FromCity)
+                    .WithMany()
+                    .HasForeignKey(l => l.FromCityId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                b.HasOne(l => l.ToCity)
+                    .WithMany()
+                    .HasForeignKey(l => l.ToCityId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<UserRecommendationCache>(b =>
+            {
+                b.Property(c => c.ResponseJson).IsRequired();
+                b.Property(c => c.SignatureHash).IsRequired().HasMaxLength(2000);
+                b.HasIndex(c => c.UserId).IsUnique();
+
+                b.HasOne(c => c.User)
+                    .WithMany()
+                    .HasForeignKey(c => c.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<PriceProposal>(b =>
+            {
+                b.Property(p => p.CurrentPrice).HasPrecision(18, 2);
+                b.Property(p => p.SuggestedPrice).HasPrecision(18, 2);
+                b.Property(p => p.OccupancyRate).HasPrecision(5, 4);
+                b.Property(p => p.VelocityFactor).HasPrecision(5, 4);
+                b.Property(p => p.UrgencyFactor).HasPrecision(5, 4);
+                b.Property(p => p.DemandScore).HasPrecision(5, 4);
+
+                // At most one PENDING proposal per flight at a time - the job
+                // waits for an admin to decide on an existing one before it can
+                // propose again for that same flight (see DynamicPricingBackgroundService).
+                // The raw "= 0" is PriceProposalStatus.Pending's stored int value -
+                // a Postgres filtered index predicate can't reference a C# enum
+                // member, only the literal it's stored as. If Pending ever stops
+                // being the first value in that enum, this filter must be updated
+                // to match (values are appended, not reordered, everywhere else in
+                // this codebase specifically to avoid this kind of drift).
+                b.HasIndex(p => p.FlightId)
+                    .IsUnique()
+                    .HasFilter($"\"{nameof(PriceProposal.Status)}\" = 0");
+
+                b.HasOne(p => p.Flight)
+                    .WithMany()
+                    .HasForeignKey(p => p.FlightId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(p => p.DecidedByUser)
+                    .WithMany()
+                    .HasForeignKey(p => p.DecidedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())

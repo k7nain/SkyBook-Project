@@ -66,6 +66,34 @@
     "flightArrived": {
       "title": "Flight arrived",
       "body": "Flight {route} has arrived."
+    },
+    "checkInOpen": {
+      "title": "Online check-in is open",
+      "body": "Online check-in for flight {route} is now open."
+    },
+    "gateChanged": {
+      "title": "Gate changed",
+      "body": "Flight {route} is now boarding at gate {gate}."
+    },
+    "flightDelayed": {
+      "title": "Flight delayed",
+      "body": "Flight {route} has been delayed."
+    },
+    "boardingReminder": {
+      "title": "Boarding starting soon",
+      "body": "Flight {route} will begin boarding shortly. Please head to the gate."
+    },
+    "priceProposalCreated": {
+      "title": "Price change suggested",
+      "body": "Demand has changed for {route} - a price update from {currentPrice} to {suggestedPrice} is suggested. Review it in the price proposals queue."
+    },
+    "checkInCompleted": {
+      "title": "Check-in complete",
+      "body": "You're checked in for {route}. Welcome aboard! Your boarding pass is ready."
+    },
+    "flightCancelled": {
+      "title": "Flight cancelled",
+      "body": "Your flight {route} has been cancelled and your booking was automatically cancelled."
     }
   }
 }

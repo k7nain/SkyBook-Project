@@ -16,6 +16,7 @@ using FlyzenApi.Infrastructure.DreamTripAi;
 using FlyzenApi.Infrastructure.Email;
 using FlyzenApi.Infrastructure.Localization;
 using FlyzenApi.Infrastructure.Notifications;
+using FlyzenApi.Infrastructure.Pricing;
 using FlyzenApi.Infrastructure.Storage;
 using FlyzenApi.Infrastructure.Translation;
 using FlyzenApi.Persistence.DAL;
@@ -49,6 +50,7 @@ namespace FlyzenApi.API
             builder.Services.Configure<CurrencyOptions>(builder.Configuration.GetSection(CurrencyOptions.SectionName));
             builder.Services.Configure<ContentTranslationOptions>(builder.Configuration.GetSection(ContentTranslationOptions.SectionName));
             builder.Services.Configure<ContactOptions>(builder.Configuration.GetSection(ContactOptions.SectionName));
+            builder.Services.Configure<DynamicPricingOptions>(builder.Configuration.GetSection(DynamicPricingOptions.SectionName));
 
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(NormalizePostgresConnectionString(builder.Configuration.GetConnectionString("DefaultConnection"))));
@@ -70,6 +72,10 @@ namespace FlyzenApi.API
             builder.Services.AddScoped<IBookingReminderRepository, BookingReminderRepository>();
             builder.Services.AddScoped<IFlightNotificationLogRepository, FlightNotificationLogRepository>();
             builder.Services.AddScoped<ISkyPointsRepository, SkyPointsRepository>();
+            builder.Services.AddScoped<ITravelJournalRepository, TravelJournalRepository>();
+            builder.Services.AddScoped<ISearchLogRepository, SearchLogRepository>();
+            builder.Services.AddScoped<IUserRecommendationCacheRepository, UserRecommendationCacheRepository>();
+            builder.Services.AddScoped<IPriceProposalRepository, PriceProposalRepository>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Application services
@@ -88,6 +94,8 @@ namespace FlyzenApi.API
             builder.Services.AddScoped<IPromoCodeService, PromoCodeService>();
             builder.Services.AddScoped<INotificationService, NotificationService>();
             builder.Services.AddScoped<ISkyPointsService, SkyPointsService>();
+            builder.Services.AddScoped<ITravelJournalService, TravelJournalService>();
+            builder.Services.AddScoped<IPriceProposalService, PriceProposalService>();
             builder.Services.AddScoped<INotificationPusher, SignalRNotificationPusher>();
             // Singleton (not Scoped): caches across requests so the About page
             // doesn't re-run these counts on every load (see PublicStatsService).
@@ -111,6 +119,7 @@ namespace FlyzenApi.API
             builder.Services.AddHttpClient<IDreamTripAiService, DreamTripAiService>();
             builder.Services.AddHostedService<TripReminderBackgroundService>();
             builder.Services.AddHostedService<FlightNotificationBackgroundService>();
+            builder.Services.AddHostedService<DynamicPricingBackgroundService>();
 
             builder.Services.AddControllers();
             builder.Services.AddSignalR();

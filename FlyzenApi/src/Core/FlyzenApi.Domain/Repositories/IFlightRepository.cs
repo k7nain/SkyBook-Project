@@ -25,6 +25,11 @@ namespace FlyzenApi.Domain.Repositories
         // Flights not yet fully completed - the set FlightNotificationBackgroundService
         // needs to check on each run (departure/arrival reminders + status transitions).
         Task<IEnumerable<Flight>> GetActiveForNotificationCheckAsync();
+        // Flights DynamicPricingBackgroundService should evaluate: Scheduled only
+        // (a Departed/Completed flight can no longer be booked, so proposing a new
+        // price for it is meaningless) - includes Seats, needed for the occupancy
+        // term of the demand formula.
+        Task<IEnumerable<Flight>> GetActiveForPricingCheckAsync();
         Task AddAsync(Flight flight);
         Task UpdateAsync(Flight flight);
         Task DeleteAsync(Flight flight);

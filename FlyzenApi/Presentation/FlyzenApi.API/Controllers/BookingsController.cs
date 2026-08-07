@@ -63,5 +63,23 @@ namespace FlyzenApi.API.Controllers
             await _bookingService.SendTicketEmailAsync(id, User.GetUserId(), request.Email);
             return NoContent();
         }
+
+        [HttpGet("{id:guid}/checkin-status")]
+        public async Task<ActionResult<CheckInStatusDto>> GetCheckInStatus(Guid id) =>
+            Ok(await _bookingService.GetCheckInStatusAsync(id, User.GetUserId()));
+
+        [HttpPost("{id:guid}/checkin")]
+        public async Task<ActionResult<CheckInStatusDto>> CheckIn(Guid id) =>
+            Ok(await _bookingService.CheckInAsync(id, User.GetUserId()));
+
+        /// <summary>
+        /// One entry per passenger on the booking (real airlines issue one
+        /// boarding pass per passenger, not one per booking) - all sharing the
+        /// same BoardingPassCode/QR payload, since check-in applies to the whole
+        /// booking at once. 400 if the booking hasn't been checked in yet.
+        /// </summary>
+        [HttpGet("{id:guid}/boarding-pass")]
+        public async Task<ActionResult<List<BoardingPassDto>>> GetBoardingPass(Guid id) =>
+            Ok(await _bookingService.GetBoardingPassAsync(id, User.GetUserId()));
     }
 }

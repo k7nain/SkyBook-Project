@@ -2,6 +2,7 @@ using FlyzenApi.API.Common;
 using FlyzenApi.Application.DTOs;
 using FlyzenApi.Application.Exceptions;
 using FlyzenApi.Application.Interfaces.Services;
+using FlyzenApi.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,6 +24,7 @@ namespace FlyzenApi.API.Controllers
         private readonly IFileStorageService _fileStorageService;
         private readonly ISeedImageMigrationService _seedImageMigrationService;
         private readonly SeedImageMigrationStatus _seedImageMigrationStatus;
+        private readonly IPriceProposalService _priceProposalService;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ILogger<AdminController> _logger;
 
@@ -38,6 +40,7 @@ namespace FlyzenApi.API.Controllers
             IFileStorageService fileStorageService,
             ISeedImageMigrationService seedImageMigrationService,
             SeedImageMigrationStatus seedImageMigrationStatus,
+            IPriceProposalService priceProposalService,
             IServiceScopeFactory serviceScopeFactory,
             ILogger<AdminController> logger)
         {
@@ -52,6 +55,7 @@ namespace FlyzenApi.API.Controllers
             _fileStorageService = fileStorageService;
             _seedImageMigrationService = seedImageMigrationService;
             _seedImageMigrationStatus = seedImageMigrationStatus;
+            _priceProposalService = priceProposalService;
             _serviceScopeFactory = serviceScopeFactory;
             _logger = logger;
         }
@@ -87,12 +91,45 @@ namespace FlyzenApi.API.Controllers
         public async Task<ActionResult<FlightSummaryDto>> UpdateFlightPrice(Guid id, UpdateFlightPriceRequest request) =>
             Ok(await _adminService.UpdateFlightPriceAsync(id, request));
 
+        /// <summary>
+        /// Updates gate number and/or operational status (Delayed/Boarding) for a
+        /// flight. Either field may be omitted to leave it unchanged. Notifies
+        /// every traveler with a non-cancelled booking on this flight in real time
+        /// (SignalR), same delivery path as price-change notifications.
+        /// </summary>
+        [HttpPatch("flights/{id:guid}/operational-status")]
+        public async Task<ActionResult<FlightSummaryDto>> UpdateFlightOperationalStatus(Guid id, UpdateFlightOperationalStatusRequest request) =>
+            Ok(await _adminService.UpdateFlightOperationalStatusAsync(id, request));
+
         [HttpDelete("flights/{id:guid}")]
         public async Task<IActionResult> DeleteFlight(Guid id)
         {
             await _adminService.DeleteFlightAsync(id);
             return NoContent();
         }
+
+        /// <summary>
+        /// Demand-based price proposals from DynamicPricingBackgroundService -
+        /// an approval queue, not an auto-apply feed. Omit status to see every
+        /// proposal ever made; ?status=Pending for just the ones awaiting a
+        /// decision (what the admin panel's badge/list should default to).
+        /// </summary>
+        [HttpGet("price-proposals")]
+        public async Task<ActionResult<IEnumerable<PriceProposalDto>>> GetPriceProposals([FromQuery] PriceProposalStatus? status) =>
+            Ok(await _priceProposalService.GetAllAsync(status));
+
+        /// <summary>
+        /// Applies the proposal's suggested price via the same path a manual
+        /// admin price edit already uses - the existing user-facing PriceChange
+        /// notification fires exactly as it always has.
+        /// </summary>
+        [HttpPatch("price-proposals/{id:guid}/approve")]
+        public async Task<ActionResult<PriceProposalDto>> ApprovePriceProposal(Guid id) =>
+            Ok(await _priceProposalService.ApproveAsync(id, User.GetUserId()));
+
+        [HttpPatch("price-proposals/{id:guid}/reject")]
+        public async Task<ActionResult<PriceProposalDto>> RejectPriceProposal(Guid id) =>
+            Ok(await _priceProposalService.RejectAsync(id, User.GetUserId()));
 
         [HttpGet("exchange-rates")]
         public async Task<ActionResult<ExchangeRatesDto>> GetExchangeRates() =>

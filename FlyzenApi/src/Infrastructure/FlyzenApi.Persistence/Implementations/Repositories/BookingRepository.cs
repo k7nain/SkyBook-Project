@@ -57,6 +57,12 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
                 .Where(b => b.FlightId == flightId && b.Status == BookingStatus.Pending)
                 .ToListAsync();
 
+        public async Task<IEnumerable<Booking>> GetTravelersByFlightIdAsync(Guid flightId) =>
+            await _context.Bookings
+                .Include(b => b.User)
+                .Where(b => b.FlightId == flightId && b.Status != BookingStatus.Cancelled)
+                .ToListAsync();
+
         // Any booking at all (regardless of status) - used to decide whether a
         // flight is safe to hard-delete. The Booking->Flight FK is Restrict, so
         // this check exists to fail with a clear message instead of a raw DB
@@ -118,6 +124,25 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
                 .ToListAsync();
 
             return totals.ToDictionary(t => t.Currency, t => t.Total);
+        }
+
+        public async Task<IReadOnlyList<DateTime>> GetBookingCreationTimestampsByFlightIdAsync(Guid flightId) =>
+            await _context.Bookings
+                .Where(b => b.FlightId == flightId && b.Status != BookingStatus.Cancelled)
+                .Select(b => b.CreatedAt)
+                .ToListAsync();
+
+        public async Task<IReadOnlyList<string>> GetPopularDestinationCountriesAsync(int count)
+        {
+            var results = await _context.Bookings
+                .Where(b => b.Status != BookingStatus.Cancelled)
+                .GroupBy(b => b.Flight.ArrivalCity.Country)
+                .Select(g => new { Country = g.Key, Count = g.Count() })
+                .OrderByDescending(g => g.Count)
+                .Take(count)
+                .ToListAsync();
+
+            return results.Select(r => r.Country).ToList();
         }
 
         public async Task<IReadOnlyList<MonthlyRevenuePoint>> GetMonthlyRevenueTrendAsync(int monthsBack)

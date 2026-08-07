@@ -100,6 +100,13 @@ namespace FlyzenApi.Persistence.DAL.Migrations
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<string>("BoardingPassCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("CheckedInAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -112,6 +119,11 @@ namespace FlyzenApi.Persistence.DAL.Migrations
 
                     b.Property<Guid>("FlightId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("IsCheckedIn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -137,6 +149,10 @@ namespace FlyzenApi.Persistence.DAL.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BoardingPassCode")
+                        .IsUnique()
+                        .HasFilter("\"BoardingPassCode\" IS NOT NULL");
 
                     b.HasIndex("FlightId");
 
@@ -356,7 +372,11 @@ namespace FlyzenApi.Persistence.DAL.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<int>("SkyPoints")
+                    b.Property<string>("GateNumber")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<int>("OperationalStatus")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0);
@@ -502,6 +522,66 @@ namespace FlyzenApi.Persistence.DAL.Migrations
                     b.ToTable("Notifications");
                 });
 
+            modelBuilder.Entity("FlyzenApi.Domain.Entities.PriceProposal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("CurrentPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DecidedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("DemandScore")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
+                    b.Property<Guid>("FlightId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("OccupancyRate")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("SuggestedPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("UrgencyFactor")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
+                    b.Property<decimal>("VelocityFactor")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecidedByUserId");
+
+                    b.HasIndex("FlightId")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 0");
+
+                    b.ToTable("PriceProposals");
+                });
+
             modelBuilder.Entity("FlyzenApi.Domain.Entities.PromoCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -548,6 +628,39 @@ namespace FlyzenApi.Persistence.DAL.Migrations
                         .IsUnique();
 
                     b.ToTable("PromoCodes");
+                });
+
+            modelBuilder.Entity("FlyzenApi.Domain.Entities.SearchLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("FromCityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ToCityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromCityId");
+
+                    b.HasIndex("ToCityId");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("SearchLogs");
                 });
 
             modelBuilder.Entity("FlyzenApi.Domain.Entities.SeatMap", b =>
@@ -671,6 +784,87 @@ namespace FlyzenApi.Persistence.DAL.Migrations
                         .IsUnique();
 
                     b.ToTable("Tickets");
+                });
+
+            modelBuilder.Entity("FlyzenApi.Domain.Entities.TravelJournal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(3000)
+                        .HasColumnType("character varying(3000)");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DestinationCityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsPublished")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<int?>("Rating")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId");
+
+                    b.HasIndex("DestinationCityId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("TravelJournals");
+                });
+
+            modelBuilder.Entity("FlyzenApi.Domain.Entities.TravelJournalImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("JournalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JournalId");
+
+                    b.ToTable("TravelJournalImages");
                 });
 
             modelBuilder.Entity("FlyzenApi.Domain.Entities.TripCity", b =>
@@ -957,6 +1151,42 @@ namespace FlyzenApi.Persistence.DAL.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("FlyzenApi.Domain.Entities.UserRecommendationCache", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ResponseJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SignatureHash")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserRecommendationCaches");
+                });
+
             modelBuilder.Entity("FlyzenApi.Domain.Entities.Booking", b =>
                 {
                     b.HasOne("FlyzenApi.Domain.Entities.Flight", "Flight")
@@ -1085,6 +1315,50 @@ namespace FlyzenApi.Persistence.DAL.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("FlyzenApi.Domain.Entities.PriceProposal", b =>
+                {
+                    b.HasOne("FlyzenApi.Domain.Entities.User", "DecidedByUser")
+                        .WithMany()
+                        .HasForeignKey("DecidedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FlyzenApi.Domain.Entities.Flight", "Flight")
+                        .WithMany()
+                        .HasForeignKey("FlightId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DecidedByUser");
+
+                    b.Navigation("Flight");
+                });
+
+            modelBuilder.Entity("FlyzenApi.Domain.Entities.SearchLog", b =>
+                {
+                    b.HasOne("FlyzenApi.Domain.Entities.City", "FromCity")
+                        .WithMany()
+                        .HasForeignKey("FromCityId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FlyzenApi.Domain.Entities.City", "ToCity")
+                        .WithMany()
+                        .HasForeignKey("ToCityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FlyzenApi.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FromCity");
+
+                    b.Navigation("ToCity");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("FlyzenApi.Domain.Entities.SeatMap", b =>
                 {
                     b.HasOne("FlyzenApi.Domain.Entities.Booking", "Booking")
@@ -1132,6 +1406,44 @@ namespace FlyzenApi.Persistence.DAL.Migrations
                     b.Navigation("Booking");
                 });
 
+            modelBuilder.Entity("FlyzenApi.Domain.Entities.TravelJournal", b =>
+                {
+                    b.HasOne("FlyzenApi.Domain.Entities.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FlyzenApi.Domain.Entities.City", "DestinationCity")
+                        .WithMany()
+                        .HasForeignKey("DestinationCityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FlyzenApi.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("DestinationCity");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FlyzenApi.Domain.Entities.TravelJournalImage", b =>
+                {
+                    b.HasOne("FlyzenApi.Domain.Entities.TravelJournal", "Journal")
+                        .WithMany("Images")
+                        .HasForeignKey("JournalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Journal");
+                });
+
             modelBuilder.Entity("FlyzenApi.Domain.Entities.TripCity", b =>
                 {
                     b.HasOne("FlyzenApi.Domain.Entities.TripCountry", "Country")
@@ -1165,6 +1477,17 @@ namespace FlyzenApi.Persistence.DAL.Migrations
                     b.Navigation("Place");
                 });
 
+            modelBuilder.Entity("FlyzenApi.Domain.Entities.UserRecommendationCache", b =>
+                {
+                    b.HasOne("FlyzenApi.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("FlyzenApi.Domain.Entities.Airline", b =>
                 {
                     b.Navigation("Flights");
@@ -1191,6 +1514,11 @@ namespace FlyzenApi.Persistence.DAL.Migrations
                     b.Navigation("Bookings");
 
                     b.Navigation("Seats");
+                });
+
+            modelBuilder.Entity("FlyzenApi.Domain.Entities.TravelJournal", b =>
+                {
+                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("FlyzenApi.Domain.Entities.TripCity", b =>

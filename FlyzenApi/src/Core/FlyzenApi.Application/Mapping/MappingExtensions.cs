@@ -46,6 +46,44 @@ namespace FlyzenApi.Application.Mapping
             CreatedAt = notification.CreatedAt,
         };
 
+        public static TravelJournalDto ToDto(this TravelJournal journal) => new()
+        {
+            Id = journal.Id,
+            UserId = journal.UserId,
+            UserName = $"{journal.User.FirstName} {journal.User.LastName}",
+            UserAvatarUrl = journal.User.ProfilePictureUrl,
+            BookingId = journal.BookingId,
+            DestinationCityId = journal.DestinationCityId,
+            DestinationCityName = journal.DestinationCity.Name,
+            Title = journal.Title,
+            Body = journal.Body,
+            Rating = journal.Rating,
+            Images = journal.Images
+                .OrderBy(i => i.DisplayOrder)
+                .Select(i => new TravelJournalImageDto { Id = i.Id, ImageUrl = i.ImageUrl, DisplayOrder = i.DisplayOrder })
+                .ToList(),
+            CreatedAt = journal.CreatedAt,
+        };
+
+        public static PriceProposalDto ToDto(this PriceProposal proposal) => new()
+        {
+            Id = proposal.Id,
+            FlightId = proposal.FlightId,
+            FlightNumber = proposal.Flight.FlightNumber,
+            Route = $"{proposal.Flight.DepartureCity.Name} -> {proposal.Flight.ArrivalCity.Name}",
+            Currency = proposal.Flight.Currency,
+            CurrentPrice = proposal.CurrentPrice,
+            SuggestedPrice = proposal.SuggestedPrice,
+            OccupancyRate = proposal.OccupancyRate,
+            VelocityFactor = proposal.VelocityFactor,
+            UrgencyFactor = proposal.UrgencyFactor,
+            DemandScore = proposal.DemandScore,
+            Status = proposal.Status,
+            CreatedAt = proposal.CreatedAt,
+            DecidedAt = proposal.DecidedAt,
+            DecidedByName = proposal.DecidedByUser is null ? null : $"{proposal.DecidedByUser.FirstName} {proposal.DecidedByUser.LastName}",
+        };
+
         public static PromoCodeDto ToDto(this PromoCode promoCode) => new()
         {
             Id = promoCode.Id,
@@ -215,7 +253,8 @@ namespace FlyzenApi.Application.Mapping
             BasePrice = flight.BasePrice,
             Currency = flight.Currency,
             AvailableSeats = flight.Seats.Count(s => s.IsAvailable),
-            SkyPoints = flight.SkyPoints,
+            GateNumber = flight.GateNumber,
+            OperationalStatus = flight.OperationalStatus,
         };
 
         public static FlightDetailDto ToDetailDto(this Flight flight) => new()
@@ -230,7 +269,8 @@ namespace FlyzenApi.Application.Mapping
             BasePrice = flight.BasePrice,
             Currency = flight.Currency,
             AvailableSeats = flight.Seats.Count(s => s.IsAvailable),
-            SkyPoints = flight.SkyPoints,
+            GateNumber = flight.GateNumber,
+            OperationalStatus = flight.OperationalStatus,
             Seats = flight.Seats.OrderBy(s => s.SeatNumber).Select(s => s.ToDto(flight.BasePrice)).ToList(),
         };
 
@@ -284,6 +324,8 @@ namespace FlyzenApi.Application.Mapping
             Passengers = booking.Passengers.Select(p => p.ToDto()).ToList(),
             Ticket = booking.Ticket?.ToDto(),
             CreatedAt = booking.CreatedAt,
+            IsCheckedIn = booking.IsCheckedIn,
+            CheckedInAt = booking.CheckedInAt,
         };
 
         public static AdminBookingDto ToAdminDto(this Booking booking)
@@ -303,6 +345,8 @@ namespace FlyzenApi.Application.Mapping
             dto.Passengers = baseDto.Passengers;
             dto.Ticket = baseDto.Ticket;
             dto.CreatedAt = baseDto.CreatedAt;
+            dto.IsCheckedIn = baseDto.IsCheckedIn;
+            dto.CheckedInAt = baseDto.CheckedInAt;
             return dto;
         }
     }

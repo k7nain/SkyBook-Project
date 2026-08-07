@@ -33,5 +33,12 @@ namespace FlyzenApi.Application.DTOs
         // frontend should always be able to show something meaningful even when
         // Recommendations is empty.
         public string? Message { get; set; }
+
+        // False only for DreamTripAiService.RecommendForYouAsync's popular-destinations
+        // fallback (thin behavior history, AI unavailable, or AI call failed) -
+        // lets the "Sizin ucun" section on Home distinguish "picked for you" from
+        // "popular with everyone" framing. Always true for the quiz-based
+        // RecommendAsync, which has no such fallback.
+        public bool IsPersonalized { get; set; } = true;
     }
 }

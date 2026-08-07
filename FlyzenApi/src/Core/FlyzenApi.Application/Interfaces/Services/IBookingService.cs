@@ -10,5 +10,9 @@ namespace FlyzenApi.Application.Interfaces.Services
         Task<BookingDto> CancelAsync(Guid id, Guid userId);
         Task DeleteAsync(Guid id, Guid userId);
         Task SendTicketEmailAsync(Guid id, Guid userId, string email);
+
+        Task<CheckInStatusDto> GetCheckInStatusAsync(Guid id, Guid userId);
+        Task<CheckInStatusDto> CheckInAsync(Guid id, Guid userId);
+        Task<List<BoardingPassDto>> GetBoardingPassAsync(Guid id, Guid userId);
     }
 }

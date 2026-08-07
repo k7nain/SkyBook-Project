@@ -173,7 +173,6 @@ namespace FlyzenApi.Application.Implementations.Services
                 ArrivalTime = arrivalTimeUtc,
                 BasePrice = basePriceAzn,
                 Currency = ICurrencyConversionService.BaseCurrency,
-                SkyPoints = request.SkyPoints,
                 Seats = BuildSeatMap(),
             };
 
@@ -210,13 +209,10 @@ namespace FlyzenApi.Application.Implementations.Services
             var newBasePriceAzn = await _currencyConversionService.ConvertToBaseAsync(request.BasePrice, request.Currency);
 
             var oldPrice = flight.BasePrice;
-            var skyPointsChanged = request.SkyPoints.HasValue && request.SkyPoints.Value != flight.SkyPoints;
-            if (oldPrice == newBasePriceAzn && !skyPointsChanged)
+            if (oldPrice == newBasePriceAzn)
                 return flight.ToSummaryDto();
 
             flight.BasePrice = newBasePriceAzn;
-            if (request.SkyPoints.HasValue)
-                flight.SkyPoints = request.SkyPoints.Value;
             await _flightRepository.UpdateAsync(flight);
 
             // Only notify users who currently have this flight in an active (Pending)
@@ -246,6 +242,129 @@ namespace FlyzenApi.Application.Implementations.Services
             }
 
             return flight.ToSummaryDto();
+        }
+
+        public async Task<FlightSummaryDto> UpdateFlightOperationalStatusAsync(Guid flightId, UpdateFlightOperationalStatusRequest request)
+        {
+            var updatedFlightId = await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                var flight = await _flightRepository.GetByIdAsync(flightId)
+                    ?? throw new NotFoundException("Flight not found.");
+
+                var oldGate = flight.GateNumber;
+                var oldOperationalStatus = flight.OperationalStatus;
+
+                // Same "null means leave unchanged" contract as UpdateFlightPriceRequest used to
+                // have for SkyPoints. GateNumber additionally treats an empty string as "clear the gate".
+                if (request.GateNumber is not null)
+                    flight.GateNumber = string.IsNullOrWhiteSpace(request.GateNumber) ? null : request.GateNumber.Trim();
+                if (request.OperationalStatus.HasValue)
+                    flight.OperationalStatus = request.OperationalStatus.Value;
+
+                var gateChanged = flight.GateNumber != oldGate;
+                var statusChanged = flight.OperationalStatus != oldOperationalStatus;
+                if (!gateChanged && !statusChanged)
+                    return flight.Id;
+
+                await _flightRepository.UpdateAsync(flight);
+
+                // Same "only actual travelers, one notification per user" fan-out as
+                // UpdateFlightPriceAsync, but against GetTravelersByFlightIdAsync
+                // (Pending + Confirmed) rather than GetActiveBookingsByFlightIdAsync
+                // (Pending only) - a gate change or delay matters to a Confirmed
+                // traveler just as much as a Pending one.
+                var travelerBookings = (await _bookingRepository.GetTravelersByFlightIdAsync(flightId)).ToList();
+                var affectedUsers = travelerBookings.Select(b => b.User).DistinctBy(u => u.Id).ToList();
+
+                if (affectedUsers.Count > 0)
+                {
+                    var route = $"{flight.DepartureCity.Name} -> {flight.ArrivalCity.Name}";
+
+                    if (gateChanged && flight.GateNumber is not null)
+                    {
+                        var args = new Dictionary<string, string> { ["route"] = route, ["gate"] = flight.GateNumber };
+                        foreach (var user in affectedUsers)
+                            await _notificationService.CreateAsync(user, "notifications.gateChanged.title", "notifications.gateChanged.body", args, NotificationType.GateChanged);
+                    }
+
+                    if (statusChanged && flight.OperationalStatus == FlightOperationalStatus.Delayed)
+                    {
+                        var args = new Dictionary<string, string> { ["route"] = route };
+                        foreach (var user in affectedUsers)
+                            await _notificationService.CreateAsync(user, "notifications.flightDelayed.title", "notifications.flightDelayed.body", args, NotificationType.FlightDelayed);
+                    }
+
+                    if (statusChanged && flight.OperationalStatus == FlightOperationalStatus.Boarding)
+                    {
+                        var args = new Dictionary<string, string> { ["route"] = route };
+                        foreach (var user in affectedUsers)
+                            await _notificationService.CreateAsync(user, "notifications.boardingReminder.title", "notifications.boardingReminder.body", args, NotificationType.BoardingReminder);
+                    }
+
+                    // Unlike the three above (informational only), Cancelled actually
+                    // cancels every active booking on this flight - otherwise the badge
+                    // would say "Cancelled" while the system kept honoring those bookings
+                    // (check-in still open, seats still held). FlightRepository.SearchAsync
+                    // separately excludes Cancelled flights from search/new bookings.
+                    if (statusChanged && flight.OperationalStatus == FlightOperationalStatus.Cancelled)
+                    {
+                        foreach (var booking in travelerBookings)
+                            await CancelBookingForFlightCancellationAsync(booking.Id);
+
+                        var args = new Dictionary<string, string> { ["route"] = route };
+                        foreach (var user in affectedUsers)
+                            await _notificationService.CreateAsync(user, "notifications.flightCancelled.title", "notifications.flightCancelled.body", args, NotificationType.FlightCancelled);
+                    }
+                }
+
+                return flight.Id;
+            });
+
+            var updated = await _flightRepository.GetByIdAsync(updatedFlightId)
+                ?? throw new NotFoundException("Flight not found.");
+            return updated.ToSummaryDto();
+        }
+
+        // Mirrors BookingService.CancelAsync's seat-release + Sky Points clawback
+        // exactly, minus the ownership check (admin-initiated on behalf of the
+        // traveler, not the traveler's own request) and DTO return. Re-fetches the
+        // booking fresh (GetTravelersByFlightIdAsync doesn't include Passengers/Seat)
+        // rather than widening that shared query for its other, hotter callers
+        // (price-change and check-in-open notification fan-out).
+        private async Task CancelBookingForFlightCancellationAsync(Guid bookingId)
+        {
+            var booking = await _bookingRepository.GetByIdAsync(bookingId);
+            if (booking is null || booking.Status == BookingStatus.Cancelled)
+                return;
+
+            booking.Status = BookingStatus.Cancelled;
+            foreach (var passenger in booking.Passengers)
+            {
+                if (passenger.Seat is not null)
+                {
+                    passenger.Seat.IsAvailable = true;
+                    passenger.Seat.BookingId = null;
+                }
+            }
+
+            await _bookingRepository.UpdateAsync(booking);
+
+            var earnedAmount = await _skyPointsRepository.GetEarnedAmountForBookingAsync(booking.Id);
+            if (earnedAmount > 0)
+            {
+                var amountToReverse = Math.Min(earnedAmount, booking.User.SkyPointsBalance);
+                if (amountToReverse > 0)
+                {
+                    booking.User.SkyPointsBalance -= amountToReverse;
+                    await _skyPointsRepository.AddTransactionAsync(new SkyPointsTransaction
+                    {
+                        UserId = booking.UserId,
+                        Amount = amountToReverse,
+                        Type = SkyPointsTransactionType.Reversed,
+                        RelatedBookingId = booking.Id,
+                    });
+                }
+            }
         }
 
         public async Task DeleteFlightAsync(Guid flightId)

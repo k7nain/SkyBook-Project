@@ -10,5 +10,8 @@ namespace FlyzenApi.Infrastructure.Notifications
         // arrival times. Kept short (unlike TripReminderDaysBefore's daily cadence)
         // since "departs in less than 1 hour" needs sub-hourly precision.
         public int FlightNotificationCheckIntervalMinutes { get; set; } = 5;
+
+        // How long before departure the boarding-closes-soon reminder fires.
+        public int BoardingReminderMinutesBeforeDeparture { get; set; } = 45;
     }
 }

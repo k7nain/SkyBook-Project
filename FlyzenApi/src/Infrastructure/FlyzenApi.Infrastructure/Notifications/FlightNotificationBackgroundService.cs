@@ -67,6 +67,7 @@ namespace FlyzenApi.Infrastructure.Notifications
             var flightRepository = scope.ServiceProvider.GetRequiredService<IFlightRepository>();
             var logRepository = scope.ServiceProvider.GetRequiredService<IFlightNotificationLogRepository>();
             var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+            var bookingRepository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var flights = (await flightRepository.GetActiveForNotificationCheckAsync()).ToList();
@@ -87,7 +88,78 @@ namespace FlyzenApi.Infrastructure.Notifications
                 cancellationToken.ThrowIfCancellationRequested();
                 await ProcessDepartureAsync(flight, nowUtc, logRepository, notificationService, flightRepository, admins);
                 await ProcessArrivalAsync(flight, nowUtc, logRepository, notificationService, flightRepository, admins);
+                await ProcessCheckInAsync(flight, nowUtc, logRepository, notificationService, bookingRepository, Flight.CheckInOpensHoursBeforeDeparture);
+                await ProcessBoardingAsync(flight, nowUtc, logRepository, notificationService, bookingRepository, _options.BoardingReminderMinutesBeforeDeparture);
             }
+        }
+
+        // Online check-in opening - traveler-facing (unlike the admin-only alerts
+        // above), so it fans out via NotifyTravelersAsync rather than NotifyAdminsAsync.
+        private static async Task ProcessCheckInAsync(
+            Flight flight,
+            DateTime nowUtc,
+            IFlightNotificationLogRepository logRepository,
+            INotificationService notificationService,
+            IBookingRepository bookingRepository,
+            int hoursBeforeDeparture)
+        {
+            var checkInOpensAt = flight.DepartureTime - TimeSpan.FromHours(hoursBeforeDeparture);
+            if (nowUtc < checkInOpensAt || nowUtc >= flight.DepartureTime)
+                return;
+
+            if (await logRepository.ExistsAsync(flight.Id, FlightNotificationEvent.CheckInOpen))
+                return;
+
+            await NotifyTravelersAsync(bookingRepository, notificationService, flight, "notifications.checkInOpen.title", "notifications.checkInOpen.body", NotificationType.CheckInOpen);
+            await logRepository.AddAsync(new FlightNotificationLog { FlightId = flight.Id, EventType = FlightNotificationEvent.CheckInOpen });
+        }
+
+        // Boarding-closes-soon reminder - traveler-facing, same reasoning as
+        // ProcessCheckInAsync above. Manually setting Flight.OperationalStatus to
+        // Boarding early (AdminService.UpdateFlightOperationalStatusAsync) also
+        // notifies travelers, independently of this automatic time-based check.
+        private static async Task ProcessBoardingAsync(
+            Flight flight,
+            DateTime nowUtc,
+            IFlightNotificationLogRepository logRepository,
+            INotificationService notificationService,
+            IBookingRepository bookingRepository,
+            int minutesBeforeDeparture)
+        {
+            var boardingReminderAt = flight.DepartureTime - TimeSpan.FromMinutes(minutesBeforeDeparture);
+            if (nowUtc < boardingReminderAt || nowUtc >= flight.DepartureTime)
+                return;
+
+            if (await logRepository.ExistsAsync(flight.Id, FlightNotificationEvent.BoardingReminder))
+                return;
+
+            await NotifyTravelersAsync(bookingRepository, notificationService, flight, "notifications.boardingReminder.title", "notifications.boardingReminder.body", NotificationType.BoardingReminder);
+            await logRepository.AddAsync(new FlightNotificationLog { FlightId = flight.Id, EventType = FlightNotificationEvent.BoardingReminder });
+        }
+
+        // Per-BOOKING (not deduped per-user like NotifyAdminsAsync's flight-level
+        // alerts) - check-in and boarding are things you do FOR a specific
+        // booking, so each notification carries that booking's id (see
+        // NotificationDto.BookingId) so the client's existing generic
+        // "tap a notification -> open that booking's ticket screen" handler
+        // lands the user on exactly the booking check-in applies to. A user
+        // holding two separate bookings on the same flight correctly gets two
+        // separate notifications, not one deduped alert with no clear booking
+        // to act on.
+        private static async Task NotifyTravelersAsync(
+            IBookingRepository bookingRepository,
+            INotificationService notificationService,
+            Flight flight,
+            string titleKey,
+            string bodyKey,
+            NotificationType type)
+        {
+            var route = $"{flight.FlightNumber} to {flight.ArrivalCity.Name}";
+            var args = new Dictionary<string, string> { ["route"] = route };
+            var bookings = await bookingRepository.GetTravelersByFlightIdAsync(flight.Id);
+
+            foreach (var booking in bookings)
+                await notificationService.CreateAsync(booking.User, titleKey, bodyKey, args, type, bookingId: booking.Id);
         }
 
         private static async Task ProcessDepartureAsync(

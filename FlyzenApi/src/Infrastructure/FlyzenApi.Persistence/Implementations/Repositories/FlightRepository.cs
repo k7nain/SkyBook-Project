@@ -36,6 +36,7 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
                 .Include(f => f.Seats)
                 .Where(f => f.ArrivalCityId == toCityId
                             && f.DepartureTime > bookingCutoff
+                            && f.OperationalStatus != FlightOperationalStatus.Cancelled
                             && f.Seats.Count(s => s.IsAvailable) >= passengersCount);
 
             // Npgsql maps DateTime to "timestamp with time zone" and requires Kind=Utc;
@@ -101,6 +102,14 @@ namespace FlyzenApi.Persistence.Implementations.Repositories
                 .Include(f => f.DepartureCity)
                 .Include(f => f.ArrivalCity)
                 .Where(f => f.Status != FlightStatus.Completed)
+                .ToListAsync();
+
+        public async Task<IEnumerable<Flight>> GetActiveForPricingCheckAsync() =>
+            await _context.Flights
+                .Include(f => f.DepartureCity)
+                .Include(f => f.ArrivalCity)
+                .Include(f => f.Seats)
+                .Where(f => f.Status == FlightStatus.Scheduled && f.DepartureTime > DateTime.UtcNow)
                 .ToListAsync();
 
         public async Task AddAsync(Flight flight)

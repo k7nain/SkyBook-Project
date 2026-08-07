@@ -12,6 +12,7 @@ namespace FlyzenApi.Application.Interfaces.Services
         Task<IEnumerable<FlightSummaryDto>> GetAllFlightsAsync();
         Task<FlightSummaryDto> CreateFlightAsync(CreateFlightRequest request);
         Task<FlightSummaryDto> UpdateFlightPriceAsync(Guid flightId, UpdateFlightPriceRequest request);
+        Task<FlightSummaryDto> UpdateFlightOperationalStatusAsync(Guid flightId, UpdateFlightOperationalStatusRequest request);
         Task DeleteFlightAsync(Guid flightId);
         Task<ExchangeRatesDto> GetExchangeRatesAsync();
         Task<AdminStatisticsDto> GetStatisticsAsync();

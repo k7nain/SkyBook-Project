@@ -25,5 +25,14 @@ namespace FlyzenApi.Domain.Entities
 
         public ICollection<BookingPassenger> Passengers { get; set; } = new List<BookingPassenger>();
         public Ticket? Ticket { get; set; }
+
+        // Set by BookingService.CheckInAsync, once the check-in window is open
+        // (see Flight.DepartureTime - Flight.CheckInOpensHoursBeforeDeparture)
+        // and before it closes (Flight.DepartureTime - Flight.BookingCutoffHours).
+        // Distinct from Ticket (issued at booking time, proof of reservation) -
+        // BoardingPassCode is the boarding pass, issued at check-in time.
+        public bool IsCheckedIn { get; set; } = false;
+        public DateTime? CheckedInAt { get; set; }
+        public string? BoardingPassCode { get; set; }
     }
 }

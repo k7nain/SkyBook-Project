@@ -66,6 +66,34 @@
     "flightArrived": {
       "title": "Uçuş çatdı",
       "body": "{route} uçuşu təyinat nöqtəsinə çatdı."
+    },
+    "checkInOpen": {
+      "title": "Onlayn check-in mümkündür",
+      "body": "{route} uçuşu üçün onlayn check-in artıq mümkündür."
+    },
+    "gateChanged": {
+      "title": "Qapı dəyişdi",
+      "body": "{route} uçuşu üçün minmə {gate} qapısından olacaq."
+    },
+    "flightDelayed": {
+      "title": "Uçuş gecikdi",
+      "body": "{route} uçuşu gecikdirilib."
+    },
+    "boardingReminder": {
+      "title": "Minmə tezliklə başlayır",
+      "body": "{route} uçuşuna minmə tezliklə başlayacaq. Zəhmət olmasa qapıya yaxınlaşın."
+    },
+    "priceProposalCreated": {
+      "title": "Qiymət dəyişikliyi tövsiyə olunur",
+      "body": "{route} uçuşu üçün tələbat dəyişib - qiymətin {currentPrice}-dan {suggestedPrice}-a yenilənməsi tövsiyə olunur. Qiymət təklifləri siyahısında nəzərdən keçirin."
+    },
+    "checkInCompleted": {
+      "title": "Check-in tamamlandı",
+      "body": "Check-in tamamlandı, uçuşa xoş gəldiniz! {route} üçün boarding pass hazırdır."
+    },
+    "flightCancelled": {
+      "title": "Uçuş ləğv edildi",
+      "body": "{route} uçuşu ləğv edildi, rezervasiyanız avtomatik ləğv olundu."
     }
   }
 }

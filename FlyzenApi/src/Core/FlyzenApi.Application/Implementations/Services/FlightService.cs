@@ -2,6 +2,7 @@ using FlyzenApi.Application.DTOs;
 using FlyzenApi.Application.Exceptions;
 using FlyzenApi.Application.Interfaces.Services;
 using FlyzenApi.Application.Mapping;
+using FlyzenApi.Domain.Entities;
 using FlyzenApi.Domain.Repositories;
 
 namespace FlyzenApi.Application.Implementations.Services
@@ -9,10 +10,12 @@ namespace FlyzenApi.Application.Implementations.Services
     public class FlightService : IFlightService
     {
         private readonly IFlightRepository _flightRepository;
+        private readonly ISearchLogRepository _searchLogRepository;
 
-        public FlightService(IFlightRepository flightRepository)
+        public FlightService(IFlightRepository flightRepository, ISearchLogRepository searchLogRepository)
         {
             _flightRepository = flightRepository;
+            _searchLogRepository = searchLogRepository;
         }
 
         public async Task<IEnumerable<FlightSummaryDto>> SearchAsync(Guid? fromCityId, Guid toCityId, DateTime? departureDate, int passengersCount)
@@ -33,6 +36,19 @@ namespace FlyzenApi.Application.Implementations.Services
         {
             var flight = await _flightRepository.GetByIdAsync(id);
             return flight?.ToDetailDto();
+        }
+
+        public async Task LogSearchAsync(Guid? userId, Guid? fromCityId, Guid toCityId)
+        {
+            if (!userId.HasValue)
+                return;
+
+            await _searchLogRepository.AddAsync(new SearchLog
+            {
+                UserId = userId.Value,
+                FromCityId = fromCityId,
+                ToCityId = toCityId,
+            });
         }
     }
 }
